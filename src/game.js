@@ -426,24 +426,30 @@ function biscuit(x, y) {
 }
 function dog(x, y, scale = 1) {
   ctx.save();
-  ctx.translate(x + 21, y + 18);
+  ctx.translate(x + 21, y + 12);
   ctx.scale(p.facing * scale, scale);
   if (p.power > 0) {
     ellipse(0, 0, 33 + Math.sin(time * 9) * 2, 30, "#c3a6e354");
   }
   if (p.invincible > 0 && Math.floor(time * 12) % 2) ctx.globalAlpha = 0.45;
-  const stride = p.grounded
-    ? Math.sin(time * Math.max(5, Math.abs(p.vx) * 0.08)) * 4
-    : 2;
-  ellipse(-1, 5, 22, 12, "#fdfcf3");
-  line(-18, 2, -27, -10 + Math.sin(time * 12) * 3, "#fffef7", 7);
-  for (const [xx, off] of [
-    [-13, stride],
-    [9, -stride],
-  ]) {
-    rect(xx - 3, 10, 7, 12 + off, "#e9e9df", 3);
-    ellipse(xx + 2, 20 + off, 6, 3, "#fffdf6");
+  const running = state === "playing" && Math.abs(p.vx) > 20;
+  const stride = running ? Math.sin(time * Math.max(5, Math.abs(p.vx) * 0.08)) : 0;
+  const airborne = state === "playing" && !p.grounded;
+  // Four separate hips and paws: far-side legs behind the body, near-side in front.
+  // Keep the swing small enough that the two pairs never collapse into one silhouette.
+  function leg(hip, phase, far) {
+    const footX = hip + phase * 2;
+    const footY = (far ? 21 : 24) - (airborne ? 4 : Math.max(0, phase) * 2);
+    const fur = far ? "#cfd5ce" : "#fffef8";
+    line(hip, 7, footX, footY - 2, fur, far ? 5 : 6);
+    ellipse(footX + 1, footY, far ? 3.5 : 4, 2.7, fur);
   }
+  leg(-7, -stride, true);
+  leg(15, stride, true);
+  ellipse(-1, 1, 22, 10, "#fdfcf3");
+  line(-18, 0, -27, -10 + Math.sin(time * 12) * 3, "#fffef7", 7);
+  leg(-18, stride, false);
+  leg(4, -stride, false);
   // Body fluff and collar must stay behind the head, never over the muzzle.
   for (let i = 0; i < 5; i++) ellipse(-16 + i * 8, -3, 5, 5, "#fffef8");
   rect(6, 8, 16, 4, "#cf8067", 2);
