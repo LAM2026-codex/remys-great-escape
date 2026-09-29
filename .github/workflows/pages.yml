@@ -23,7 +23,7 @@ jobs:
           node-version: 22
       - run: npm test && npm run check
       - uses: actions/configure-pages@v5
-      - run: mkdir _site && cp index.html style.css _site/ && cp -r src _site/
+      - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
