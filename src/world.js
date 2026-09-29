@@ -2,8 +2,8 @@ export const WIDTH = 5400,
   HEIGHT = 550;
 export const overlap = (a, b) =>
   a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-export function createWorld(index = 0) {
-  if (index > 0) return addChallenges(buildLevel(index));
+function createBaseWorld(index = 0) {
+  if (index > 0) return buildLevel(index);
   const ground = [
     [0, 930],
     [1050, 770],
@@ -56,8 +56,8 @@ export function createWorld(index = 0) {
     vx: i % 2 ? 55 : -50,
     alive: true,
   }));
-  return addChallenges({
-    definition: LEVELS[0],
+  return {
+    definition: ROUTE_TEMPLATES[0],
     index: 0,
     platforms: [...ground, ...ledges],
     biscuits,
@@ -70,7 +70,7 @@ export function createWorld(index = 0) {
       { x: 2050, y: 425, w: 40, h: 25, active: false },
       { x: 4280, y: 425, w: 40, h: 25, active: false },
     ],
-  });
+  };
 }
 export function createPlayer(x = 100, y = 400) {
   return {
@@ -167,7 +167,7 @@ export function movePlayer(p, input, platforms, dt, environment = {}) {
 }
 
 // Each route has its own authored gaps and elevated biscuit trail.
-export const LEVELS = [
+const ROUTE_TEMPLATES = [
   {
     name: "The Garden Gate",
     region: "Aix countryside",
@@ -366,7 +366,7 @@ export const LEVELS = [
   },
 ];
 function buildLevel(index) {
-  const definition = LEVELS[index];
+  const definition = ROUTE_TEMPLATES[index];
   if (!definition) throw new RangeError("Unknown level");
   const ground = [];
   let start = 0;
@@ -481,13 +481,39 @@ export const CHALLENGES = [
   ],
 ];
 function addChallenges(w) {
-  const n = w.index;
+  const n = w.definition.route;
+  const difficulty = w.definition.difficulty;
   if (n > 0)
     w.platforms = [
       { x: 0, y: 450, w: WIDTH, h: 150, ground: true },
       ...w.platforms.filter((r) => !r.ground),
     ];
-  w.challenge = CHALLENGES[n];
+  w.challenge = [...CHALLENGES[n]];
+  if (n === 1)
+    w.challenge = [
+      "Catch a ride",
+      "Ride the blue moving platforms across the lake inlet. Wait for a platform to come close before jumping.",
+    ];
+  if (n === 2)
+    w.challenge = [
+      "Rainforest crossing",
+      "Cracked boards fall after a short pause. Keep hopping; boards return after 3 seconds.",
+    ];
+  if (n === 3)
+    w.challenge = [
+      "Spring into the hills",
+      "Green spring pads launch you higher. Bounce up to the golden tag, then reach the exit.",
+    ];
+  if (n === 5)
+    w.challenge = [
+      "Castle lift",
+      "Ride the blue lift to the castle balcony and collect its golden tag. Step off at the top.",
+    ];
+  if (n === 11 && w.definition.country !== "France")
+    w.challenge = [
+      "Country finale",
+      "Cross moving platforms, swim for a tag and time the water jets. Collect all three tags to finish this country.",
+    ];
   w.clock = 0;
   w.direction = [4, 7, 10].includes(n) ? -1 : 1;
   w.spawn = { x: 100, y: 400 };
@@ -611,6 +637,7 @@ function addChallenges(w) {
   if (n === 9)
     for (const x of [600, 1550, 2500, 3550, 4600]) sprinkler(x, x / 400);
   if (n === 10) {
+    bridge(2100, 3060, "crumble");
     cut(4200, 5100);
     w.platforms.push({ x: 4200, y: 450, w: 900, h: 150, ground: true });
     const gate = {
@@ -676,6 +703,42 @@ function addChallenges(w) {
     w.spawn = { x: WIDTH - 143, y: 400 };
     w.goal.x = 100;
   }
+  w.enemies = w.enemies.slice(0, difficulty);
+  w.enemies.forEach((e) => (e.vx = Math.sign(e.vx) * (25 + difficulty * 9)));
+  for (const r of w.platforms) {
+    if (r.kind === "moving") r.speed *= 0.65 + difficulty * 0.12;
+    if (r.kind === "crumble") r.crumbleDelay = 1.3 - difficulty * 0.1;
+  }
+  if (w.definition.country === "UK" && difficulty === 1)
+    w.platforms.push({ x: 1200, y: 365, w: 150, h: 22 });
+  if (w.definition.country === "France" && difficulty === 5) sprinkler(4300, 1);
+  // Regional finales combine everything learned in the four preceding missions.
+  if (w.definition.country === "UK" && difficulty === 5)
+    for (const x of [2920, 3350])
+      w.hazards.push({
+        x,
+        y: 390,
+        baseY: 390,
+        w: 32,
+        h: 38,
+        kind: "jellyfish",
+        phase: x / 100,
+        active: true,
+      });
+  if (w.definition.country === "France" && difficulty === 2)
+    for (const x of [600, 2400, 4400]) sprinkler(x, x / 400);
+  if (w.definition.country === "France" && difficulty === 5)
+    for (const x of [2920, 3350])
+      w.hazards.push({
+        x,
+        y: 390,
+        baseY: 390,
+        w: 32,
+        h: 38,
+        kind: "jellyfish",
+        phase: x / 100,
+        active: true,
+      });
   placeBiscuits(w);
   return w;
 }
@@ -696,7 +759,7 @@ export function updateWorld(w, p, dt) {
         if (!r.inactive) r.crack = 0;
       } else if (p.support === r || r.crack > 0) {
         r.crack = (r.crack || 0) + dt;
-        if (r.crack > 0.7) {
+        if (r.crack > (r.crumbleDelay ?? 0.7)) {
           r.inactive = true;
           r.cooldown = 3;
         }
@@ -772,4 +835,57 @@ function placeBiscuits(w) {
     for (let x = water.x + 100; x < water.x + water.w - 100; x += 110)
       safe(x, 445);
   w.biscuits.sort((a, b) => (a.x - b.x) * w.direction);
+}
+
+const CAMPAIGN = [
+  ["New Zealand", "Auckland", "Harbour Hello", 0, "nz-coast"],
+  ["New Zealand", "Rotorua", "Lake Log Leap", 1, "nz-lake"],
+  ["New Zealand", "West Coast", "Rainforest Crossing", 2, "nz-forest"],
+  ["New Zealand", "Abel Tasman", "Golden Bay Paddle", 6, "nz-coast"],
+  ["New Zealand", "Fiordland", "Fiordland Adventure", 11, "nz-mountains"],
+  ["UK", "Cotswolds", "Village Wander", 0, "uk-village"],
+  ["UK", "Yorkshire", "Dales Spring Trail", 3, "uk-hills"],
+  ["UK", "Northumberland", "Castle Lift", 5, "uk-castle"],
+  ["UK", "Scottish Highlands", "Highland Gate Run", 10, "uk-castle"],
+  ["UK", "Cornwall", "Coastal Challenge", 11, "uk-coast"],
+  ["France", "Provence", "Village Tag Hunt", 4, "market"],
+  ["France", "Provence", "Market Sprinkler Dash", 4, "market"],
+  ["France", "Calanques", "Mistral Leap", 8, "cliffs"],
+  ["France", "Cassis", "Harbour Current", 7, "harbour"],
+  ["France", "Provence", "Home Before Dinner", 11, "home"],
+];
+export const LEVELS = CAMPAIGN.map(
+  ([country, region, name, route, scene], index) => ({
+    ...ROUTE_TEMPLATES[route],
+    country,
+    region,
+    name,
+    route,
+    scene,
+    mission: (index % 5) + 1,
+    difficulty: (index % 5) + 1,
+    ...(country === "New Zealand"
+      ? {
+          sky: "#cce9ee",
+          horizon: "#eef1cf",
+          hills: "#789e89",
+          ground: "#b9b68a",
+        }
+      : country === "UK"
+        ? {
+            sky: "#d9e3e9",
+            horizon: "#e9ead4",
+            hills: "#889a79",
+            ground: "#afa797",
+          }
+        : {}),
+  }),
+);
+export function createWorld(index = 0) {
+  const definition = LEVELS[index];
+  if (!definition) throw new RangeError("Unknown mission");
+  const w = createBaseWorld(definition.route);
+  w.definition = definition;
+  w.index = index;
+  return addChallenges(w);
 }

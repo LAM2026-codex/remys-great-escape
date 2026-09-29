@@ -694,3 +694,104 @@ canvas {
     font-size: 8px;
   }
 }
+
+.country-heading {
+  grid-column: 1/-1;
+  font:
+    500 21px "Fraunces",
+    Georgia;
+  color: #365740;
+  margin: 14px 0 2px;
+}
+.game-shell,
+.game-shell * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.touch-controls,
+.touch-controls * {
+  touch-action: none;
+  -webkit-user-drag: none;
+}
+@media (pointer: coarse), (max-width: 900px) {
+  .game-shell .touch-controls,
+  .game-shell.is-focused .touch-controls {
+    padding: 10px 12px;
+    gap: 12px;
+    align-items: end;
+  }
+  .game-shell .touch-controls > div:first-child,
+  .game-shell.is-focused .touch-controls > div:first-child {
+    display: flex;
+    gap: 10px;
+  }
+  .game-shell .touch-controls > div:last-child,
+  .game-shell.is-focused .touch-controls > div:last-child {
+    display: grid;
+    grid-template-columns: 64px 64px;
+    gap: 8px;
+  }
+  .game-shell .touch-controls button,
+  .game-shell.is-focused .touch-controls button {
+    min-width: 64px;
+    min-height: 64px;
+    width: 64px;
+    height: 64px;
+    font-size: 26px;
+  }
+  .game-shell .touch-controls button[data-control="left"],
+  .game-shell .touch-controls button[data-control="right"] {
+    height: 80px;
+    width: 72px;
+  }
+  .game-shell .touch-controls button[data-control="jump"],
+  .game-shell.is-focused .touch-controls button[data-control="jump"] {
+    grid-column: 1/-1;
+    width: 136px;
+    height: 76px;
+    background: #cadfbb;
+    font-size: 32px;
+  }
+  .game-shell .touch-controls button[data-control="run"] {
+    font-size: 14px;
+  }
+}
+@media (max-width: 360px) {
+  .game-shell .touch-controls,
+  .game-shell.is-focused .touch-controls {
+    padding: 8px;
+    gap: 8px;
+  }
+  .game-shell .touch-controls > div:first-child,
+  .game-shell.is-focused .touch-controls > div:first-child {
+    gap: 8px;
+  }
+  .game-shell .touch-controls button[data-control="left"],
+  .game-shell .touch-controls button[data-control="right"] {
+    width: 68px;
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .game-shell .touch-controls > div:last-child,
+  .game-shell.is-focused .touch-controls > div:last-child {
+    display: flex;
+    gap: 12px;
+  }
+  .game-shell .touch-controls button,
+  .game-shell.is-focused .touch-controls button {
+    width: 76px;
+    height: 68px;
+    min-height: 68px;
+  }
+  .game-shell .touch-controls button[data-control="jump"],
+  .game-shell.is-focused .touch-controls button[data-control="jump"] {
+    width: 104px;
+    height: 68px;
+  }
+  .game-shell .touch-controls button[data-control="left"],
+  .game-shell .touch-controls button[data-control="right"] {
+    width: 76px;
+    height: 68px;
+  }
+}

@@ -67,7 +67,7 @@ test("overlap uses actual rectangle bounds", () => {
 
 test("moving platforms carry a standing player horizontally and vertically", async () => {
   const { updateWorld } = await import("../src/world.js");
-  for (const i of [1, 5]) {
+  for (const i of [1, 7]) {
     const w = createWorld(i),
       r = w.platforms.find((r) => r.kind === "moving"),
       p = createPlayer(r.x + 20, r.y - 34);
@@ -86,19 +86,19 @@ test("crumbling boards disappear and return; springs work when walked onto", asy
     p = createPlayer(r.x, r.y - 34);
   p.grounded = true;
   p.support = r;
-  for (let i = 0; i < 90; i++) updateWorld(w, p, 1 / 120);
+  for (let i = 0; i < 140; i++) updateWorld(w, p, 1 / 120);
   assert.equal(r.inactive, true);
   p.support = null;
   for (let i = 0; i < 370; i++) updateWorld(w, p, 1 / 120);
   assert.equal(r.inactive, false);
-  const s = createWorld(3),
+  const s = createWorld(6),
     pad = s.platforms.find((r) => r.kind === "spring"),
     dog = createPlayer(pad.x, 416);
   movePlayer(dog, {}, s.platforms, 1 / 120, s);
   assert.ok(dog.vy < -800);
 });
 test("swimming supports paddle, dive, currents and safe bank exits", () => {
-  const w = createWorld(7),
+  const w = createWorld(13),
     water = w.water[0],
     p = createPlayer(water.x + 200, 390);
   for (let i = 0; i < 60; i++)
@@ -111,14 +111,14 @@ test("swimming supports paddle, dive, currents and safe bank exits", () => {
 });
 test("reverse exits require tags and gate switch expires without crushing", async () => {
   const { goalReached, updateWorld } = await import("../src/world.js");
-  const w = createWorld(4),
+  const w = createWorld(10),
     p = createPlayer(w.goal.x, 400);
   assert.equal(w.direction, -1);
   assert.ok(w.spawn.x > 5000);
   assert.equal(goalReached(w, p), false);
   w.tokens.forEach((t) => (t.taken = true));
   assert.equal(goalReached(w, p), true);
-  const g = createWorld(10),
+  const g = createWorld(8),
     sw = g.switches[0],
     dog = createPlayer(sw.x, 416);
   updateWorld(g, dog, 0.01);
@@ -132,7 +132,7 @@ test("reverse exits require tags and gate switch expires without crushing", asyn
 });
 test("sprinklers have safe, warning and active intervals", async () => {
   const { updateWorld } = await import("../src/world.js");
-  const w = createWorld(9),
+  const w = createWorld(11),
     p = createPlayer(),
     h = w.hazards[0];
   h.phase = 0;
@@ -144,9 +144,9 @@ test("sprinklers have safe, warning and active intervals", async () => {
   assert.equal(h.active, true);
 });
 
-test("every biscuit in all twelve stages is reachable from its route surface before the exit", async () => {
+test("every biscuit in all fifteen stages is reachable from its route surface before the exit", async () => {
   const { updateWorld, goalReached, WIDTH } = await import("../src/world.js");
-  for (let level = 0; level < 12; level++) {
+  for (let level = 0; level < 15; level++) {
     const template = createWorld(level);
     assert.ok(template.biscuits.length > 20);
     for (let i = 0; i < template.biscuits.length; i++) {

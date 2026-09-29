@@ -16,9 +16,23 @@ let level = 0,
   unlocked = 0,
   records = {};
 try {
-  const saved = JSON.parse(localStorage.getItem("remy-adventure-v2") || "null");
+  let saved = JSON.parse(localStorage.getItem("remy-world-tour-v3") || "null");
+  if (!saved) {
+    const old = JSON.parse(localStorage.getItem("remy-adventure-v2") || "null");
+    if (old)
+      saved = {
+        unlocked: Math.min(
+          14,
+          Math.round(((Number(old.unlocked) || 0) * 14) / 11),
+        ),
+        records: {},
+      };
+  }
   if (saved) {
-    unlocked = Math.max(0, Math.min(11, Number(saved.unlocked) || 0));
+    unlocked = Math.max(
+      0,
+      Math.min(LEVELS.length - 1, Number(saved.unlocked) || 0),
+    );
     records = saved.records || {};
   }
 } catch {}
@@ -50,7 +64,7 @@ function releaseTouch() {
 let focusedGame = false;
 function focusGame(value) {
   focusedGame = value;
-  if(value)canvas.focus({preventScroll:true});
+  if (value) canvas.focus({ preventScroll: true });
   $(".game-shell").classList[value ? "add" : "remove"]("is-focused");
   $("#focus-game").setAttribute("aria-pressed", String(value));
   $("#focus-game").setAttribute(
@@ -90,7 +104,7 @@ function toast(t) {
 function saveProgress() {
   try {
     localStorage.setItem(
-      "remy-adventure-v2",
+      "remy-world-tour-v3",
       JSON.stringify({ unlocked, records }),
     );
   } catch {}
@@ -99,6 +113,12 @@ function levelMenu() {
   const menu = $("#level-list");
   menu.replaceChildren();
   LEVELS.forEach((l, i) => {
+    if (i % 5 === 0) {
+      const title = document.createElement("h3");
+      title.textContent = l.country;
+      title.className = "country-heading";
+      menu.append(title);
+    }
     const b = document.createElement("button");
     b.disabled = i > unlocked;
     b.className = i === level ? "selected" : "";
@@ -140,15 +160,15 @@ function show(kind) {
   const last = level === LEVELS.length - 1;
   const data = {
     start: [
-      `STAGE ${level + 1} / 12 · ${world.definition.region}`,
+      `STAGE ${level + 1} / ${LEVELS.length} · ${world.definition.country}`,
       world.definition.name,
-      world.challenge[1],
+      `${world.definition.country} · Mission ${world.definition.mission}/5 · Difficulty ${world.definition.difficulty}/5<br>${world.challenge[1]}`,
       "Let’s go, Remy",
     ],
     paused: [
       "A MOMENT IN THE SHADE",
       "Catch your breath.",
-      world.challenge[1],
+      `${world.definition.country} · Mission ${world.definition.mission}/5 · Difficulty ${world.definition.difficulty}/5<br>${world.challenge[1]}`,
       "Keep exploring",
     ],
     over: [
@@ -162,8 +182,9 @@ function show(kind) {
       last ? "Good dog, Remy!" : "Lovely work, Remy!",
       `You found ${score} of ${world.biscuits.length} biscuits in ${Math.floor(elapsed / 60)}:${String(Math.floor(elapsed % 60)).padStart(2, "0")}.<br>` +
         (last
-          ? "All twelve stages complete. Dinner is waiting!"
-          : "Next stop: " + LEVELS[Math.min(11, level + 1)].name),
+          ? "All fifteen missions complete. Dinner is waiting!"
+          : "Next stop: " +
+            LEVELS[Math.min(LEVELS.length - 1, level + 1)].name),
       last ? "Play from the beginning" : "Next adventure",
     ],
   }[kind];
@@ -185,7 +206,7 @@ function show(kind) {
 function start() {
   unlock();
   if (state === "complete") {
-    level = level === 11 ? 0 : level + 1;
+    level = level === LEVELS.length - 1 ? 0 : level + 1;
     resetLevel();
     show("start");
     return;
@@ -248,7 +269,13 @@ window.addEventListener("keyup", (e) => {
     e.preventDefault();
   }
 });
+$(".touch-controls").addEventListener("touchstart", (e) => e.preventDefault(), {
+  passive: false,
+});
+for (const event of ["contextmenu", "selectstart", "dragstart"])
+  $(".game-shell").addEventListener(event, (e) => e.preventDefault());
 for (const b of document.querySelectorAll("[data-control]")) {
+  b.addEventListener("contextmenu", (e) => e.preventDefault());
   b.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     if (b.dataset.control === "run") {
@@ -279,7 +306,10 @@ function updateHud() {
   $(".level-label").textContent =
     String(level + 1).padStart(2, "0") +
     " / " +
-    world.definition.name.toUpperCase();
+    world.definition.country.toUpperCase() +
+    " · " +
+    world.definition.mission +
+    "/5";
   const progress = Math.max(
     0,
     Math.min(
@@ -418,7 +448,7 @@ function step(dt) {
     }
   }
   if (goalReached(world, p) && state === "playing") {
-    unlocked = Math.max(unlocked, Math.min(11, level + 1));
+    unlocked = Math.max(unlocked, Math.min(LEVELS.length - 1, level + 1));
     records[level] = Math.max(records[level] || 0, score);
     saveProgress();
     show("complete");
@@ -484,6 +514,24 @@ function house(x, y, s = 1) {
   rect(x + 38 * s, y - 40 * s, 24 * s, 40 * s, "#a19471", 10);
 }
 function lavender(x, y, s = 1) {
+  if (world.definition.country === "New Zealand") {
+    for (let j = -2; j <= 2; j++)
+      line(
+        x,
+        y,
+        x + j * 7 * s,
+        y - (26 - Math.abs(j) * 4) * s,
+        "#668e72",
+        2 * s,
+      );
+    return;
+  }
+  if (world.definition.country === "UK") {
+    line(x, y, x, y - 18 * s, "#789663", 2 * s);
+    ellipse(x, y - 20 * s, 5 * s, 4 * s, "#fff4d2");
+    ellipse(x, y - 20 * s, 2 * s, 2 * s, "#d6b469");
+    return;
+  }
   for (let j = -1; j <= 1; j++) {
     const sw = Math.sin(time * 1.8 + x) * 2;
     line(x, y, x + j * 9 * s + sw, y - 28 * s, "#85966b", 1.5);
@@ -729,11 +777,15 @@ function draw() {
     }
   for (const e of world.enemies) if (e.alive) enemy(e);
   const gx = world.goal.x;
-  if (level === 11) house(gx + 10, 450, 1.65);
+  if (level === LEVELS.length - 1) house(gx + 10, 450, 1.65);
   rect(gx + 35, 373, 5, 77, "#9c9271");
   rect(gx - 15, 351, 130, 34, "#f5ecd0", 5);
   text(
-    level === 11 ? "CHEZ REMY" : world.direction === -1 ? "← EXIT" : "EXIT →",
+    level === LEVELS.length - 1
+      ? "CHEZ REMY"
+      : world.direction === -1
+        ? "← EXIT"
+        : "EXIT →",
     gx - 3,
     373,
     16,
@@ -812,6 +864,10 @@ if (new URLSearchParams(location.search).has("test"))
   };
 
 function drawScenery() {
+  if (world.definition.country !== "France") {
+    drawCountryScenery();
+    return;
+  }
   const scene = world.definition.scene;
   ctx.save();
   ctx.translate(-camera * 0.55, 0);
@@ -999,4 +1055,93 @@ if (previewParams.has("test") && previewParams.has("x")) {
     state = "playing";
     $("#overlay").hidden = true;
   }
+}
+
+function drawCountryScenery() {
+  const nz = world.definition.country === "New Zealand",
+    scene = world.definition.scene;
+  ctx.save();
+  ctx.translate(-camera * 0.5, 0);
+  for (let i = 0; i < 20; i++) {
+    const x = i * 330;
+    if (nz) {
+      ctx.fillStyle = "#849f9a";
+      ctx.beginPath();
+      ctx.moveTo(x - 80, 385);
+      ctx.lineTo(x + 125, 155 + (i % 3) * 28);
+      ctx.lineTo(x + 320, 385);
+      ctx.fill();
+      ctx.fillStyle = "#e7eeea";
+      ctx.beginPath();
+      ctx.moveTo(x + 84, 205 + (i % 3) * 28);
+      ctx.lineTo(x + 125, 155 + (i % 3) * 28);
+      ctx.lineTo(x + 165, 205 + (i % 3) * 28);
+      ctx.lineTo(x + 129, 192 + (i % 3) * 28);
+      ctx.fill();
+      if (
+        scene === "nz-coast" ||
+        scene === "nz-lake" ||
+        scene === "nz-mountains"
+      ) {
+        rect(x, 370, 330, 70, "#87bdc6");
+        for (let j = 0; j < 4; j++)
+          line(
+            x + 30 + j * 70,
+            391 + j * 9,
+            x + 65 + j * 70,
+            391 + j * 9,
+            "#d0e8dc",
+            2,
+          );
+      }
+      if (scene === "nz-forest") {
+        rect(x + 85, 315, 9, 130, "#867e64");
+        for (let j = -2; j <= 2; j++) {
+          line(
+            x + 90,
+            322,
+            x + 90 + j * 23,
+            302 + Math.abs(j) * 10,
+            "#507c62",
+            5,
+          );
+        }
+      }
+      if (i % 2 === 0) {
+        ellipse(x + 225, 424, 20, 11, "#fff7e6");
+        ellipse(x + 246, 425, 7, 7, "#69796a");
+        line(x + 213, 431, x + 213, 444, "#69796a", 3);
+        line(x + 234, 431, x + 234, 444, "#69796a", 3);
+      }
+    } else {
+      rect(x, 419, 330, 24, "#929b7b");
+      for (let j = 0; j < 8; j++)
+        rect(x + j * 43, 404 + (j % 2) * 4, 40, 17, "#a5ab91", 3);
+      if (scene === "uk-castle") {
+        rect(x + 70, 310, 125, 100, "#a1a89c");
+        for (let j = 0; j < 5; j++)
+          rect(x + 65 + j * 29, 295, 20, 25, "#969f94");
+        rect(x + 115, 356, 32, 55, "#6b8276", 14);
+      } else {
+        rect(x + 70, 340, 90, 77, "#c8c6ae");
+        ctx.fillStyle = "#828c85";
+        ctx.beginPath();
+        ctx.moveTo(x + 55, 343);
+        ctx.lineTo(x + 115, 300);
+        ctx.lineTo(x + 175, 343);
+        ctx.fill();
+        rect(x + 88, 362, 16, 21, "#718e89");
+        rect(x + 130, 362, 16, 21, "#718e89");
+        rect(x + 110, 385, 18, 33, "#806f61");
+      }
+      if (i % 3 === 0) {
+        rect(x + 230, 372, 24, 49, "#b47567", 4);
+        rect(x + 234, 381, 16, 24, "#d4e5dc", 2);
+      }
+      if (scene === "uk-coast") {
+        rect(x, 430, 330, 20, "#8ab7c2");
+      }
+    }
+  }
+  ctx.restore();
 }

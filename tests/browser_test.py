@@ -35,7 +35,7 @@ with sync_playwright() as pw:
  page.get_by_role('button',name='Try again').click()
  assert page.evaluate('__remy.player.health')==3
  # Mechanics render and state smoke checks. Full input-driven routes run in Node.
- for stage in range(12):
+ for stage in range(15):
   page.evaluate('(i)=>__remy.loadLevel(i)',stage)
   page.wait_for_timeout(40)
   assert page.evaluate('__remy.level')==stage
@@ -44,8 +44,8 @@ with sync_playwright() as pw:
   assert page.evaluate('__remy.state')=='complete'
  page.reload()
  page.locator('summary').click()
- assert page.locator('#level-list button:enabled').count()==12
- page.goto('http://localhost:4173/?test&stage=6&x=2300')
+ assert page.locator('#level-list button:enabled').count()==15
+ page.goto('http://localhost:4173/?test&stage=3&x=2300')
  page.wait_for_timeout(400)
  assert page.evaluate('__remy.player.swimming')
  before=page.evaluate('__remy.player.y')
@@ -76,8 +76,11 @@ with sync_playwright() as pw:
  assert mobile.evaluate('document.documentElement.scrollWidth<=innerWidth')
  for control in ['left','right','run','down','jump']:
   box=mobile.locator('[data-control="'+control+'"]').bounding_box()
-  assert box['width']>=44 and box['height']>=44
+  assert box['width']>=64 and box['height']>=64
   assert box['y']+box['height']<=844
+ # Long-press menus must be cancelled at the game surface.
+ assert mobile.locator('[data-control="right"]').evaluate("e=>!e.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true}))")
+ assert mobile.locator('[data-control="right"]').evaluate("e=>getComputedStyle(e).webkitTouchCallout") in ['none',None,'']
  mobile.screenshot(path=str(root/'test-results/mobile-preview.png'),full_page=True)
  mobile.set_viewport_size({'width':844,'height':390})
  mobile.wait_for_timeout(150)
@@ -86,7 +89,7 @@ with sync_playwright() as pw:
   box=mobile.locator('[data-control="'+control+'"]').bounding_box()
   assert box['y']>=0 and box['y']+box['height']<=390
  mobile.screenshot(path=str(root/'test-results/mobile-landscape.png'),full_page=True)
- mobile.goto('http://localhost:4173/?test&stage=6&x=2300')
+ mobile.goto('http://localhost:4173/?test&stage=3&x=2300')
  mobile.get_by_role('button',name='Expand game',exact=True).tap()
  mobile.wait_for_timeout(350)
  before=mobile.evaluate('__remy.player.y')

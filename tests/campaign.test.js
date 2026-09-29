@@ -73,44 +73,48 @@ function harness(storage = new Map()) {
     draw: () => sandbox.frame(100),
   };
 }
-test("all twelve authored routes can be finished with real simulation and collisions", () => {
+test("all fifteen authored routes can be finished with real simulation and collisions", () => {
   const h = harness();
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < world.LEVELS.length; i++) {
     h.game.loadLevel(i);
     const w = h.game.world;
+    const n = w.definition.route;
     const points = [];
     const tx = (x) => (w.direction === 1 ? x : world.WIDTH - x - 43);
-    if (i === 3)
+    if (n === 3)
       points.push(
         { x: tx(2270), spring: true },
         { x: w.tokens[0].x, y: w.tokens[0].y },
       );
-    if (i === 4)
+    if (n === 4)
       points.push(
         { x: tx(1520), y: 330 },
         { x: w.tokens[0].x, y: w.tokens[0].y },
         { x: w.tokens[1].x, y: w.tokens[1].y },
       );
-    if (i === 5)
+    if (n === 5)
       points.push(
         { x: tx(2380), lift: true },
         { x: w.tokens[0].x, y: w.tokens[0].y },
       );
-    if (i === 6 || i === 7)
+    if (n === 6 || n === 7)
       for (const token of w.tokens) {
-        if (i === 7)
+        if (n === 7)
           points.push({ x: token.x - 100 * w.direction, y: 285, water: true });
         points.push({ x: token.x, y: token.y, water: true });
       }
-    if (i === 8)
+    if (n === 8)
       points.push(
         { x: tx(3170), spring: true },
         { x: w.tokens[0].x, y: w.tokens[0].y },
       );
-    if (i === 10) points.push({ x: w.switches[0].x, y: 416 });
-    if (i === 11)
-      for (const token of w.tokens)
+    if (n === 10) points.push({ x: w.switches[0].x, y: 416 });
+    if (n === 11)
+      for (const token of w.tokens) {
+        if (token.y > 440)
+          points.push({ x: token.x - 100 * w.direction, y: 285, water: true });
         points.push({ x: token.x, y: token.y, water: token.y > 440 });
+      }
     points.push({ x: w.goal.x + 20, y: 400 });
     let waypoint = 0;
     for (let t = 0; t < 120 * 150 && h.game.state === "playing"; t++) {
@@ -186,15 +190,15 @@ test("all twelve authored routes can be finished with real simulation and collis
     );
     h.draw();
     h.game.start();
-    assert.equal(h.game.level, i === 11 ? 0 : i + 1);
+    assert.equal(h.game.level, i === world.LEVELS.length - 1 ? 0 : i + 1);
   }
-  const saved = JSON.parse(h.storage.get("remy-adventure-v2"));
-  assert.equal(saved.unlocked, 11);
-  assert.equal(Object.keys(saved.records).length, 12);
+  const saved = JSON.parse(h.storage.get("remy-world-tour-v3"));
+  assert.equal(saved.unlocked, 14);
+  assert.equal(Object.keys(saved.records).length, 15);
 });
 test("retry stays on selected stage; checkpoints and power-ups function on every stage", () => {
   const h = harness();
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < world.LEVELS.length; i++) {
     h.game.loadLevel(i);
     const p = h.game.player,
       c = h.game.world.checkpoints[0];
@@ -230,18 +234,18 @@ test("pause freezes motion, progress survives reload, invalid storage is safe", 
   h.game.step(1 / 120);
   const restored = harness(h.storage);
   assert.equal(
-    JSON.parse(restored.storage.get("remy-adventure-v2")).unlocked,
+    JSON.parse(restored.storage.get("remy-world-tour-v3")).unlocked,
     1,
   );
   assert.doesNotThrow(() =>
-    harness(new Map([["remy-adventure-v2", "not json"]])),
+    harness(new Map([["remy-world-tour-v3", "not json"]])),
   );
 });
 test("all stage layouts differ and checkpoints have ground underneath", () => {
   const layouts = new Set();
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < world.LEVELS.length; i++) {
     const w = world.createWorld(i);
-    layouts.add(JSON.stringify(w.platforms));
+    layouts.add(JSON.stringify([w.platforms, w.hazards, w.enemies]));
     for (const c of w.checkpoints)
       assert.ok(
         w.platforms.some(
@@ -249,5 +253,38 @@ test("all stage layouts differ and checkpoints have ground underneath", () => {
         ),
       );
   }
-  assert.equal(layouts.size, 12);
+  assert.equal(layouts.size, 15);
+});
+
+test("three countries have five ordered missions and rising difficulty", () => {
+  assert.equal(world.LEVELS.length, 15);
+  for (const [chapter, country] of ["New Zealand", "UK", "France"].entries()) {
+    const missions = world.LEVELS.slice(chapter * 5, chapter * 5 + 5);
+    assert.ok(missions.every((l) => l.country === country));
+    assert.deepEqual(
+      missions.map((l) => l.difficulty),
+      [1, 2, 3, 4, 5],
+    );
+    assert.deepEqual(
+      missions.map((l) => l.mission),
+      [1, 2, 3, 4, 5],
+    );
+    assert.ok(world.createWorld(chapter * 5 + 4).tokens.length >= 3);
+  }
+});
+test("old campaign unlocks migrate without applying scores to different missions", () => {
+  const h = harness(
+    new Map([
+      [
+        "remy-adventure-v2",
+        JSON.stringify({ unlocked: 11, records: { 0: 42 } }),
+      ],
+    ]),
+  );
+  h.game.loadLevel(0);
+  h.game.player.x = 5185;
+  h.game.step(1 / 120);
+  const saved = JSON.parse(h.storage.get("remy-world-tour-v3"));
+  assert.equal(saved.unlocked, 14);
+  assert.equal(saved.records[0], 0);
 });
