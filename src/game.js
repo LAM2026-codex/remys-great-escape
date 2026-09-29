@@ -36,8 +36,29 @@ let world = createWorld(),
   viewW = 1100;
 const keys = new Set(),
   pointers = new Map();
-let jumpPressed = false;
-const held = (name) => keys.has(name) || [...pointers.values()].includes(name);
+let jumpPressed = false,
+  touchRun = false;
+const held = (name) =>
+  keys.has(name) ||
+  (name === "run" && touchRun) ||
+  [...pointers.values()].includes(name);
+function releaseTouch() {
+  pointers.clear();
+  touchRun = false;
+  $('[data-control="run"]').setAttribute("aria-pressed", "false");
+}
+let focusedGame = false;
+function focusGame(value) {
+  focusedGame = value;
+  if(value)canvas.focus({preventScroll:true});
+  $(".game-shell").classList[value ? "add" : "remove"]("is-focused");
+  $("#focus-game").setAttribute("aria-pressed", String(value));
+  $("#focus-game").setAttribute(
+    "aria-label",
+    value ? "Restore page" : "Expand game",
+  );
+}
+$("#focus-game").onclick = () => focusGame(!focusedGame);
 function tone(freq, duration = 0.12, type = "sine", volume = 0.045) {
   if (!sound || !audio) return;
   const o = audio.createOscillator(),
@@ -103,7 +124,7 @@ function resetLevel() {
   camera = Math.max(0, Math.min(WIDTH - viewW, p.x - viewW * 0.5));
   respawn = { ...world.spawn };
   keys.clear();
-  pointers.clear();
+  releaseTouch();
   jumpPressed = false;
   toastTimer = 0;
   $("#toast").classList.remove("show");
@@ -113,7 +134,7 @@ function resetLevel() {
 function show(kind) {
   state = kind;
   keys.clear();
-  pointers.clear();
+  releaseTouch();
   jumpPressed = false;
   $("#overlay").hidden = false;
   const last = level === LEVELS.length - 1;
@@ -149,7 +170,8 @@ function show(kind) {
   $("#panel-kicker").textContent = data[0];
   $("#panel-title").innerHTML = data[1];
   $("#panel-copy").innerHTML = data[2];
-  $("#play").innerHTML = data[3] + (world.direction===-1?" <span>←</span>":" <span>→</span>");
+  $("#play").innerHTML =
+    data[3] + (world.direction === -1 ? " <span>←</span>" : " <span>→</span>");
   $("#panel-hint").textContent =
     kind === "complete"
       ? "YOUR PROGRESS IS SAVED ON THIS DEVICE."
@@ -172,7 +194,9 @@ function start() {
   state = "playing";
   $("#overlay").hidden = true;
   $("#pause").setAttribute("aria-label", "Pause game");
-  canvas.focus();
+  if (window.matchMedia?.("(max-width: 900px), (pointer: coarse)")?.matches)
+    focusGame(true);
+  canvas.focus({ preventScroll: true });
   updateHud();
 }
 $("#play").onclick = start;
@@ -227,6 +251,11 @@ window.addEventListener("keyup", (e) => {
 for (const b of document.querySelectorAll("[data-control]")) {
   b.addEventListener("pointerdown", (e) => {
     e.preventDefault();
+    if (b.dataset.control === "run") {
+      touchRun = !touchRun;
+      b.setAttribute("aria-pressed", String(touchRun));
+      return;
+    }
     b.setPointerCapture(e.pointerId);
     pointers.set(e.pointerId, b.dataset.control);
     if (b.dataset.control === "jump") jumpPressed = true;
@@ -236,7 +265,7 @@ for (const b of document.querySelectorAll("[data-control]")) {
 }
 window.addEventListener("blur", () => {
   keys.clear();
-  pointers.clear();
+  releaseTouch();
   if (state === "playing") show("paused");
 });
 document.addEventListener("visibilitychange", () => {
@@ -727,10 +756,12 @@ function draw() {
 function resize() {
   const box = canvas.getBoundingClientRect();
   viewW = (HEIGHT * box.width) / box.height;
+  const renderHeight = box.height < 320 ? 400 : HEIGHT;
+  viewW = (renderHeight * box.width) / box.height;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.round(viewW * dpr);
-  canvas.height = HEIGHT * dpr;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  canvas.height = renderHeight * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, -(HEIGHT - renderHeight) * dpr);
 }
 new ResizeObserver(resize).observe(canvas);
 resize();

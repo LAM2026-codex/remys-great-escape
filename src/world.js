@@ -676,6 +676,7 @@ function addChallenges(w) {
     w.spawn = { x: WIDTH - 143, y: 400 };
     w.goal.x = 100;
   }
+  placeBiscuits(w);
   return w;
 }
 export function updateWorld(w, p, dt) {
@@ -722,4 +723,53 @@ export function updateWorld(w, p, dt) {
 }
 export function goalReached(w, p) {
   return overlap(p, w.goal) && w.tokens.every((t) => t.taken);
+}
+
+// Keep every collectible on the traversable route and away from the auto-exit.
+// Use actual collision surfaces after all cuts, pools and mirroring are complete.
+function placeBiscuits(w) {
+  w.biscuits = [];
+  const safe = (x, y) => {
+    if (x < 250 || x + 20 > 5050) return;
+    if (
+      w.platforms.some(
+        (r) =>
+          (r.kind === "spring" || r.kind === "gate") &&
+          x + 65 > r.x &&
+          x - 45 < r.x + r.w,
+      )
+    )
+      return;
+    if (w.hazards.some((h) => Math.abs(x - h.x) < 65)) return;
+    if (
+      w.biscuits.some((b) => Math.abs(b.x - x) < 55 && Math.abs(b.y - y) < 50)
+    )
+      return;
+    w.biscuits.push({ x, y, w: 20, h: 16, taken: false });
+  };
+  for (const r of w.platforms) {
+    if (r.ground && r.y === 450) {
+      for (
+        let x = Math.max(260, r.x + 70);
+        x < Math.min(5030, r.x + r.w - 70);
+        x += 110
+      )
+        safe(x, 407);
+    }
+    if (r.kind === "crumble" || (r.kind === "moving" && r.axis === "x"))
+      safe((r.baseX ?? r.x) + 45, r.y - 40);
+    if (
+      !r.ground &&
+      !r.kind &&
+      r.y >= 350 &&
+      w.platforms.some(
+        (g) => g.ground && g.y === 450 && g.x <= r.x && g.x + g.w >= r.x + r.w,
+      )
+    )
+      safe(r.x + r.w / 2 - 10, r.y - 38);
+  }
+  for (const water of w.water)
+    for (let x = water.x + 100; x < water.x + water.w - 100; x += 110)
+      safe(x, 445);
+  w.biscuits.sort((a, b) => (a.x - b.x) * w.direction);
 }

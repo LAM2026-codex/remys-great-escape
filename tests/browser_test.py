@@ -56,12 +56,50 @@ with sync_playwright() as pw:
  mobile.on('pageerror',lambda e:errors.append(str(e)))
  mobile.goto('http://localhost:4173/?test')
  mobile.get_by_role('button',name='Let’s go, Remy').tap()
- mobile.locator('[data-control="right"]').dispatch_event('pointerdown',{'pointerId':1,'pointerType':'touch'})
+ assert mobile.locator('.game-shell').evaluate("e=>e.classList.contains('is-focused')")
+ mobile.get_by_role('button',name='Toggle running').tap()
+ assert mobile.get_by_role('button',name='Toggle running').get_attribute('aria-pressed')=='true'
+ cdp=mobile.context.new_cdp_session(mobile)
+ def touch(control,ident):
+  r=mobile.locator('[data-control="'+control+'"]').bounding_box()
+  return {'x':r['x']+r['width']/2,'y':r['y']+r['height']/2,'id':ident}
+ right=touch('right',1);jump=touch('jump',2)
+ cdp.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[right]})
+ mobile.wait_for_timeout(150)
+ cdp.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[right,jump]})
+ mobile.wait_for_timeout(180)
+ assert mobile.evaluate('__remy.player.x')>145
+ assert mobile.evaluate('__remy.player.y')<390
+ cdp.send('Input.dispatchTouchEvent',{'type':'touchEnd','touchPoints':[]})
  mobile.wait_for_timeout(400)
- mobile.locator('[data-control="right"]').dispatch_event('pointerup',{'pointerId':1,'pointerType':'touch'})
- assert mobile.evaluate('__remy.player.x')>130
+ assert abs(mobile.evaluate('__remy.player.vx'))<1
  assert mobile.evaluate('document.documentElement.scrollWidth<=innerWidth')
+ for control in ['left','right','run','down','jump']:
+  box=mobile.locator('[data-control="'+control+'"]').bounding_box()
+  assert box['width']>=44 and box['height']>=44
+  assert box['y']+box['height']<=844
  mobile.screenshot(path=str(root/'test-results/mobile-preview.png'),full_page=True)
+ mobile.set_viewport_size({'width':844,'height':390})
+ mobile.wait_for_timeout(150)
+ assert mobile.evaluate('document.documentElement.scrollWidth<=innerWidth')
+ for control in ['left','right','run','down','jump']:
+  box=mobile.locator('[data-control="'+control+'"]').bounding_box()
+  assert box['y']>=0 and box['y']+box['height']<=390
+ mobile.screenshot(path=str(root/'test-results/mobile-landscape.png'),full_page=True)
+ mobile.goto('http://localhost:4173/?test&stage=6&x=2300')
+ mobile.get_by_role('button',name='Expand game',exact=True).tap()
+ mobile.wait_for_timeout(350)
+ before=mobile.evaluate('__remy.player.y')
+ cdp.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[touch('jump',3)]})
+ mobile.wait_for_timeout(400)
+ cdp.send('Input.dispatchTouchEvent',{'type':'touchEnd','touchPoints':[]})
+ assert mobile.evaluate('__remy.player.y')<before
+ cdp.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[touch('down',4)]})
+ mobile.wait_for_timeout(400)
+ assert mobile.evaluate('__remy.player.vy')>0
+ cdp.send('Input.dispatchTouchEvent',{'type':'touchEnd','touchPoints':[]})
+ mobile.get_by_role('button',name='Restore page',exact=True).tap()
+ assert not mobile.locator('.game-shell').evaluate("e=>e.classList.contains('is-focused')")
  print('Browser checks passed; JS errors:',errors)
  assert not errors
  browser.close()

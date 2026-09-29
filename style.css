@@ -559,3 +559,138 @@ a:focus-visible {
     line-height: 1.5;
   }
 }
+
+/* In-page expansion works on phones that do not support native fullscreen. */
+#focus-game {
+  border: 0;
+  background: transparent;
+  color: #345845;
+  font-size: 22px;
+  padding: 6px;
+  min-width: 38px;
+  min-height: 40px;
+}
+body:has(.game-shell.is-focused) {
+  overflow: hidden;
+}
+.game-shell.is-focused {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0;
+  border: 0;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  height: 100dvh;
+  touch-action: none;
+}
+.game-shell.is-focused .hud {
+  flex: 0 0 56px;
+  height: 56px;
+}
+.game-shell.is-focused .viewport {
+  flex: 1;
+  min-height: 0;
+  aspect-ratio: auto;
+}
+.game-shell.is-focused .touch-controls {
+  flex-shrink: 0;
+}
+.game-shell.is-focused .overlay {
+  overflow-y: auto;
+}
+canvas {
+  touch-action: none;
+}
+.touch-controls button {
+  min-width: 44px;
+  min-height: 48px;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.touch-controls button[aria-pressed="true"] {
+  background: #315a45;
+  color: #fff9e8;
+  border-color: #315a45;
+}
+@media (pointer: coarse), (max-width: 900px) {
+  .game-shell.is-focused .touch-controls {
+    display: flex;
+    padding: 10px 16px;
+    gap: 12px;
+  }
+  .game-shell.is-focused .touch-controls > div {
+    gap: 10px;
+  }
+  .game-shell.is-focused .touch-controls button {
+    width: 56px;
+    height: 56px;
+  }
+  .game-shell.is-focused .touch-controls button[data-control="jump"] {
+    width: 70px;
+    background: #d6e2c8;
+  }
+  .game-shell.is-focused .stats {
+    gap: 7px;
+  }
+}
+@media (max-width: 360px) {
+  .game-shell.is-focused .touch-controls {
+    padding: 8px;
+    gap: 6px;
+  }
+  .game-shell.is-focused .touch-controls > div {
+    gap: 6px;
+  }
+  .game-shell.is-focused .touch-controls button {
+    width: 46px;
+    height: 52px;
+  }
+  .game-shell.is-focused .touch-controls button[data-control="jump"] {
+    width: 52px;
+  }
+  .game-shell.is-focused .stats {
+    gap: 3px;
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .game-shell.is-focused .hud {
+    flex-basis: 44px;
+    height: 44px;
+  }
+  .game-shell.is-focused .touch-controls {
+    padding: 5px 16px;
+  }
+  .game-shell.is-focused .touch-controls button {
+    height: 44px;
+    min-height: 44px;
+  }
+  .game-shell.is-focused .overlay {
+    padding: 12px 6%;
+    align-items: flex-start;
+  }
+  .game-shell.is-focused h2 {
+    font-size: 27px;
+    margin: 7px 0;
+  }
+  .game-shell.is-focused .panel .eyebrow {
+    margin: 0;
+    font-size: 8px;
+  }
+  .game-shell.is-focused .panel > p:not(.eyebrow):not(.micro) {
+    font-size: 11px;
+    line-height: 1.4;
+    margin: 6px 0;
+  }
+  .game-shell.is-focused .primary {
+    padding: 9px 18px;
+    margin: 5px 0;
+  }
+  .game-shell.is-focused .micro {
+    margin: 5px 0;
+    font-size: 8px;
+  }
+}

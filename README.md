@@ -12,7 +12,7 @@ From this directory, run `npm start` (requires Python 3), then open http://local
 - **Jump:** Space, W or up arrow. Hold for height; release for a short hop.
 - **Run:** hold Shift.
 - **Pause/resume:** P, Escape or the pause button. Leaving the tab automatically pauses.
-- **Touch:** hold the direction and jump buttons; combine RUN with movement. Landscape offers a wider view, but portrait works too.
+- **Touch:** hold direction and Jump together. Tap RUN to toggle sprinting; tap again to turn it off. Dive uses the down button. Play automatically expands on phones; use the ⛶ button to restore the page. Portrait and landscape both work; landscape gives a wider view.
 - **Sound:** opt in with the sound button. All sound effects are synthesized locally after interaction.
 
 Follow the biscuit trails to Remy’s house at the far right. Biscuits are optional. Golden tags are required on the stages that introduce them. Jump on cats, chickens, or wasps to bounce them out of the way, or avoid them. Three hearts protect you from mistakes. Falls cost one heart and return you to the latest checkpoint. Blue water bowls save a checkpoint and refill health once per attempt. Lavender charms grant ten seconds of protection, faster running and a biscuit magnet. Falling still costs a heart. Game over restarts the current stage; checkpoints are retained only during that attempt. The finish screen reports biscuits and time and continues to the next stage. Completed-stage unlocks and best biscuit counts persist after reload; mid-level positions do not.
@@ -88,3 +88,11 @@ Every stage now has its own introduction. “Next adventure” opens those instr
 In water, hold **Space / W / up / touch Jump** to paddle upwards. Release to sink gently; use **S / down / touch Dive** to dive faster. There is no drowning timer. Checkpoint recovery retains collected tags. Blue platforms move, cracked brown boards crumble, and green pads spring. Water currents have arrow marks; sprinklers show an orange warning before the pink spray becomes harmful. The HUD indicates travel direction and required tags. The gate stays open if closing would trap Remy inside it.
 
 `npm run build` creates `_site/` with content-versioned CSS and JavaScript URLs. For scene inspection only, `?test&stage=6&x=2300` starts a water-level preview; stage indices are zero-based. These test URLs do not unlock the campaign by themselves.
+
+## Collectibles and mobile play
+
+Biscuit positions are rebuilt from the final terrain, after level cuts and leftward mirroring. They sit on supported ground, reachable low ledges, bridge boards, or swimming routes. Every biscuit stays before the automatic exit trigger, with room for Remy’s collision box. Placement avoids spring pads, gate columns, and hazard centres. The biscuit counter uses this rebuilt set; totals differ from earlier releases.
+
+The reachability test checks every biscuit in all twelve stages by simulating a pickup from its route surface or water segment. Full-level route tests separately verify traversal. These are not exhaustive human 100% collection playthroughs.
+
+Phones use an expanded in-page play view with safe-area padding, large touch buttons and simultaneous movement/jump support. RUN is a touch toggle, so sprint-jumping needs only two fingers. Pause and stage changes clear held controls. Landscape crops some sky to keep Remy readable. The browser suite checks actual multi-touch events in mobile Chromium emulation, portrait and landscape geometry, swimming/diving and restoring the page; physical iOS/Android testing remains outstanding.

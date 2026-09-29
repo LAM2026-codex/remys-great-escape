@@ -56,7 +56,7 @@ test("world objects are independent per attempt", () => {
     b = createWorld();
   a.biscuits[0].taken = true;
   assert.equal(b.biscuits[0].taken, false);
-  assert.ok(b.biscuits.length > 50);
+  assert.equal(b.biscuits.length, a.biscuits.length);
 });
 test("overlap uses actual rectangle bounds", () => {
   assert.equal(
@@ -142,4 +142,73 @@ test("sprinklers have safe, warning and active intervals", async () => {
   assert.equal(h.warning, true);
   updateWorld(w, p, 0.5);
   assert.equal(h.active, true);
+});
+
+test("every biscuit in all twelve stages is reachable from its route surface before the exit", async () => {
+  const { updateWorld, goalReached, WIDTH } = await import("../src/world.js");
+  for (let level = 0; level < 12; level++) {
+    const template = createWorld(level);
+    assert.ok(template.biscuits.length > 20);
+    for (let i = 0; i < template.biscuits.length; i++) {
+      const w = createWorld(level),
+        b = w.biscuits[i];
+      assert.ok(
+        w.direction === 1
+          ? b.x + b.w < w.goal.x - 43
+          : b.x > w.goal.x + w.goal.w + 43,
+        `stage ${level + 1}: biscuit beyond exit`,
+      );
+      const water = w.water.find((r) => overlap(b, r));
+      let p;
+      if (water) p = createPlayer(b.x - 10, b.y + 20);
+      else {
+        // Find the real route support, including moving or crumbling boards.
+        const support = w.platforms
+          .filter(
+            (r) =>
+              r.kind !== "gate" &&
+              r.x <= b.x &&
+              r.x + r.w >= b.x + b.w &&
+              r.y >= b.y + b.h,
+          )
+          .sort((a, b) => a.y - b.y)[0];
+        assert.ok(support, `stage ${level + 1}: unsupported biscuit ${i}`);
+        const base =
+          support.ground || support.kind
+            ? support
+            : w.platforms.find(
+                (r) =>
+                  r.ground &&
+                  r.y === 450 &&
+                  r.x <= b.x &&
+                  r.x + r.w >= b.x + b.w,
+              );
+        assert.ok(base, `stage ${level + 1}: no launch surface`);
+        p = createPlayer(b.x - 10, base.y - 34);
+        p.grounded = true;
+        p.support = base;
+      }
+      let picked = overlap(p, b);
+      for (let step = 0; step < 180 && !picked; step++) {
+        updateWorld(w, p, 1 / 120);
+        movePlayer(
+          p,
+          { jump: !water || p.y > b.y, jumpPressed: step === 0 },
+          w.platforms,
+          1 / 120,
+          w,
+        );
+        assert.equal(
+          goalReached(w, p),
+          false,
+          "collection must not trigger completion",
+        );
+        picked = overlap(p, b);
+      }
+      assert.ok(
+        picked,
+        `stage ${level + 1}: unreachable biscuit ${i} (${b.x},${b.y})`,
+      );
+    }
+  }
 });

@@ -42,6 +42,13 @@
             <span id="health" aria-label="3 hearts">♥ ♥ ♥</span
             ><span class="divider"></span
             ><span>✦ <b id="score">00</b><small id="total"></small></span
+            ><button
+              id="focus-game"
+              aria-label="Expand game"
+              aria-pressed="false"
+              title="Expand game"
+            >
+              ⛶</button
             ><button id="pause" aria-label="Pause game">Ⅱ</button>
           </div>
         </div>
@@ -79,7 +86,12 @@
             ><button data-control="right" aria-label="Move right">→</button>
           </div>
           <div>
-            <button data-control="run" aria-label="Run">RUN</button
+            <button
+              data-control="run"
+              aria-label="Toggle running"
+              aria-pressed="false"
+            >
+              RUN</button
             ><button data-control="down" aria-label="Dive">↓</button
             ><button data-control="jump" aria-label="Jump">↑</button>
           </div>
