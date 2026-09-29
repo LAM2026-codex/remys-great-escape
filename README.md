@@ -2,7 +2,7 @@
 
 [Play free in your browser](https://LAM2026-codex.github.io/remys-great-escape/)
 
-A small **white dog**, a sunny afternoon, and the long way home. An original, 12-level browser platformer set in a storybook Provence, built with Canvas, CSS and vanilla JavaScript. No build step, game libraries, accounts, or backend.
+A small **white dog**, a sunny afternoon, and the long way home. An original, 12-level browser platformer set in a storybook Provence, built with Canvas, CSS and vanilla JavaScript. No game libraries, accounts, or backend. Local play needs no build; GitHub Pages uses a small build step to version file URLs and prevent stale cached artwork.
 
 ## Play locally
 
@@ -15,7 +15,7 @@ From this directory, run `npm start` (requires Python 3), then open http://local
 - **Touch:** hold the direction and jump buttons; combine RUN with movement. Landscape offers a wider view, but portrait works too.
 - **Sound:** opt in with the sound button. All sound effects are synthesized locally after interaction.
 
-Follow the biscuit trails to Remy’s house at the far right. Collectibles are optional. Jump on cats, chickens, or wasps to bounce them out of the way, or avoid them. Three hearts protect you from mistakes. Falls cost one heart and return you to the latest checkpoint. Blue water bowls save a checkpoint and refill health once per attempt. Lavender charms grant ten seconds of protection, faster running and a biscuit magnet. Falling still costs a heart. Game over restarts the current stage; checkpoints are retained only during that attempt. The finish screen reports biscuits and time and continues to the next stage. Completed-stage unlocks and best biscuit counts persist after reload; mid-level positions do not.
+Follow the biscuit trails to Remy’s house at the far right. Biscuits are optional. Golden tags are required on the stages that introduce them. Jump on cats, chickens, or wasps to bounce them out of the way, or avoid them. Three hearts protect you from mistakes. Falls cost one heart and return you to the latest checkpoint. Blue water bowls save a checkpoint and refill health once per attempt. Lavender charms grant ten seconds of protection, faster running and a biscuit magnet. Falling still costs a heart. Game over restarts the current stage; checkpoints are retained only during that attempt. The finish screen reports biscuits and time and continues to the next stage. Completed-stage unlocks and best biscuit counts persist after reload; mid-level positions do not.
 
 ## GitHub Pages
 
@@ -65,3 +65,26 @@ Optional: install Python Playwright (`python3 -m pip install playwright` and `py
 12. Home Before Dinner
 
 `tests/campaign.test.js` executes all twelve complete routes against the game logic, checks progression/retry/checkpoints/power-ups, and exercises drawing with a mock canvas. This complements visual browser checks; it is not a browser rendering test.
+
+## Challenge campaign
+
+Every stage now has its own introduction. “Next adventure” opens those instructions before the next stage begins. Existing saved unlocks remain available.
+
+| Stage | Main challenge |
+| --- | --- |
+| 1 — The Garden Gate | Run, jump and bounce: the introductory route |
+| 2 — Lavender Lanes | Moving platforms across a wide ditch |
+| 3 — The Olive Grove | Crumbling boards: 0.7 seconds before falling, 3 seconds to return |
+| 4 — Vineyard Hop | Spring launch to a required high golden tag |
+| 5 — Market Day | Right-to-left travel and two tag pickups |
+| 6 — The Old Aqueduct | Vertical lift to a high tag balcony |
+| 7 — Salt & Sea | Swimming and two underwater tags |
+| 8 — Harbour Hounds | Leftward swimming against a current, with jellyfish |
+| 9 — Calanque Climb | Wind gusts and a spring-assisted climb |
+| 10 — Pinecone Path | Pulsing sprinklers with warning and safe intervals |
+| 11 — Golden Hour | Leftward switch-and-gate race; 8 seconds to pass |
+| 12 — Home Before Dinner | Moving platforms, swimming, sprinklers and three required tags |
+
+In water, hold **Space / W / up / touch Jump** to paddle upwards. Release to sink gently; use **S / down / touch Dive** to dive faster. There is no drowning timer. Checkpoint recovery retains collected tags. Blue platforms move, cracked brown boards crumble, and green pads spring. Water currents have arrow marks; sprinklers show an orange warning before the pink spray becomes harmful. The HUD indicates travel direction and required tags. The gate stays open if closing would trap Remy inside it.
+
+`npm run build` creates `_site/` with content-versioned CSS and JavaScript URLs. For scene inspection only, `?test&stage=6&x=2300` starts a water-level preview; stage indices are zero-based. These test URLs do not unlock the campaign by themselves.

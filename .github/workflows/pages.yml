@@ -22,6 +22,18 @@ jobs:
         with:
           node-version: 22
       - run: npm test && npm run check
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser test tools
+        run: |
+          python -m pip install playwright==1.58.0
+          python -m playwright install --with-deps chromium
+      - name: Check browser controls and swimming
+        run: |
+          python -m http.server 4173 > /tmp/remy-server.log 2>&1 &
+          for attempt in $(seq 1 20); do curl -fsS http://localhost:4173/ > /dev/null && break || sleep 1; done
+          python tests/browser_test.py
       - uses: actions/configure-pages@v5
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3

@@ -521,3 +521,41 @@ a:focus-visible {
     line-height: 1.6;
   }
 }
+
+#challenge-status {
+  position: absolute;
+  left: 16px;
+  top: 12px;
+  border-radius: 15px;
+  background: #fff9e7dd;
+  color: #476953;
+  padding: 7px 12px;
+  font-size: 10px;
+  pointer-events: none;
+}
+.overlay:not([hidden]) ~ #challenge-status {
+  display: none;
+}
+.viewport:has(.overlay:not([hidden])) #challenge-status {
+  display: none;
+}
+.touch-controls button[data-control="down"] {
+  font-size: 20px;
+}
+@media (max-width: 450px) {
+  .touch-controls {
+    padding: 8px;
+    gap: 7px;
+  }
+  .touch-controls > div {
+    gap: 6px;
+  }
+  .touch-controls button {
+    width: 43px;
+    height: 48px;
+  }
+  .panel > p:not(.eyebrow):not(.micro) {
+    font-size: 11px;
+    line-height: 1.5;
+  }
+}

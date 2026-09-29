@@ -51,7 +51,7 @@
             width="1100"
             height="550"
             tabindex="0"
-            aria-label="Side scrolling platformer. Move with arrows or A D. Jump with Space. Dash with Shift. Pause with Escape."
+            aria-label="Side scrolling platformer. Move with arrows or A D. Jump or swim up with Space. Dive with down or S. Run with Shift. Pause with Escape."
           ></canvas>
           <div id="overlay" class="overlay">
             <div class="panel">
@@ -69,6 +69,7 @@
               </p>
             </div>
           </div>
+          <div id="challenge-status" aria-live="off"></div>
           <div id="toast" role="status" aria-live="polite"></div>
           <div id="power" class="power" hidden>LAVENDER ZOOM <span></span></div>
         </div>
@@ -79,6 +80,7 @@
           </div>
           <div>
             <button data-control="run" aria-label="Run">RUN</button
+            ><button data-control="down" aria-label="Dive">↓</button
             ><button data-control="jump" aria-label="Jump">↑</button>
           </div>
         </div>

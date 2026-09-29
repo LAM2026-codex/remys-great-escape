@@ -53,8 +53,18 @@ function harness(storage = new Map()) {
       .replace(/^import[\s\S]*?from "\.\/world\.js";\s*/, ""),
     sandbox,
   );
-  const key = (code, type = "keydown") =>
-    events[type]({ code, target: { tagName: "CANVAS" }, preventDefault() {} });
+  const pressed = new Set();
+  const key = (code, type = "keydown") => {
+    const repeat = pressed.has(code);
+    if (type === "keydown") pressed.add(code);
+    else pressed.delete(code);
+    events[type]({
+      code,
+      repeat,
+      target: { tagName: "CANVAS" },
+      preventDefault() {},
+    });
+  };
   return {
     game: sandbox.window.__remy,
     key,
@@ -67,31 +77,112 @@ test("all twelve authored routes can be finished with real simulation and collis
   const h = harness();
   for (let i = 0; i < 12; i++) {
     h.game.loadLevel(i);
-    h.key("ArrowRight");
-    h.key("ShiftLeft");
-    for (let t = 0; t < 120 * 70 && h.game.state === "playing"; t++) {
-      const p = h.game.player;
-      const footing = h.game.world.platforms.find(
-        (r) =>
-          Math.abs(p.y + p.h - r.y) < 2 && p.x + p.w > r.x && p.x < r.x + r.w,
+    const w = h.game.world;
+    const points = [];
+    const tx = (x) => (w.direction === 1 ? x : world.WIDTH - x - 43);
+    if (i === 3)
+      points.push(
+        { x: tx(2270), spring: true },
+        { x: w.tokens[0].x, y: w.tokens[0].y },
       );
-      const danger = h.game.world.enemies.some(
-        (e) =>
-          e.alive && e.x > p.x && e.x - p.x < 110 && Math.abs(e.y - p.y) < 70,
+    if (i === 4)
+      points.push(
+        { x: tx(1520), y: 330 },
+        { x: w.tokens[0].x, y: w.tokens[0].y },
+        { x: w.tokens[1].x, y: w.tokens[1].y },
       );
-      if (
-        p.grounded &&
-        ((footing && footing.x + footing.w - p.x < 105) || danger)
-      ) {
-        h.key("Space", "keyup");
-        h.key("Space");
+    if (i === 5)
+      points.push(
+        { x: tx(2380), lift: true },
+        { x: w.tokens[0].x, y: w.tokens[0].y },
+      );
+    if (i === 6 || i === 7)
+      for (const token of w.tokens) {
+        if (i === 7)
+          points.push({ x: token.x - 100 * w.direction, y: 285, water: true });
+        points.push({ x: token.x, y: token.y, water: true });
       }
+    if (i === 8)
+      points.push(
+        { x: tx(3170), spring: true },
+        { x: w.tokens[0].x, y: w.tokens[0].y },
+      );
+    if (i === 10) points.push({ x: w.switches[0].x, y: 416 });
+    if (i === 11)
+      for (const token of w.tokens)
+        points.push({ x: token.x, y: token.y, water: token.y > 440 });
+    points.push({ x: w.goal.x + 20, y: 400 });
+    let waypoint = 0;
+    for (let t = 0; t < 120 * 150 && h.game.state === "playing"; t++) {
+      const p = h.game.player,
+        target = points[waypoint];
+      const lift = w.platforms.find(
+        (r) => r.kind === "moving" && r.axis === "y",
+      );
+      const near = Math.abs(p.x - target.x) < 30;
+      if (
+        near &&
+        ((target.spring && p.vy < -600) ||
+          (target.lift && p.support === lift && lift.y < 255) ||
+          (!target.spring && !target.lift && Math.abs(p.y - target.y) < 34)) &&
+        waypoint < points.length - 1
+      )
+        waypoint++;
+      const next = points[waypoint],
+        dx = next.x - p.x;
+      const dir = Math.abs(dx) < 8 ? 0 : Math.sign(dx);
+      const footing = p.support;
+      const edge =
+        footing &&
+        (dir > 0 ? footing.x + footing.w - p.x < 70 : p.x - footing.x < 70);
+      const danger =
+        w.enemies.some(
+          (e) =>
+            e.alive &&
+            (e.x - p.x) * dir > 0 &&
+            Math.abs(e.x - p.x) < 110 &&
+            Math.abs(e.y - p.y) < 70,
+        ) ||
+        w.hazards.some(
+          (e) =>
+            e.active &&
+            (e.x - p.x) * dir > 0 &&
+            Math.abs(e.x - p.x) < 100 &&
+            Math.abs(e.y - p.y) < 90,
+        );
+      let jump =
+        p.grounded &&
+        (edge ||
+          danger ||
+          (!next.spring &&
+            next.y !== undefined &&
+            p.y > next.y + 20 &&
+            Math.abs(dx) < 130));
+      if (next.lift)
+        jump =
+          p.grounded &&
+          p.support !== lift &&
+          lift.y > 370 &&
+          Math.abs(dx) < 100;
+      const swimming = w.water.some((r) => world.overlap(p, r));
+      if (swimming) jump = next.water ? p.y > next.y + 5 : true;
+      if (!p.grounded && !swimming) jump = true;
+      for (const [code, on] of [
+        ["ArrowRight", dir > 0],
+        ["ArrowLeft", dir < 0],
+        ["ShiftLeft", !next.water],
+        ["ArrowDown", swimming && next.water && p.y < next.y - 5],
+      ])
+        h.key(code, on ? "keydown" : "keyup");
+      // Retrigger only a grounded jump; held Space maintains jump height or paddles.
+      if (jump && p.grounded) h.key("Space", "keyup");
+      h.key("Space", jump ? "keydown" : "keyup");
       h.game.step(1 / 120);
     }
     assert.equal(
       h.game.state,
       "complete",
-      `${world.LEVELS[i].name}: x=${h.game.player.x}, health=${h.game.player.health}`,
+      `${world.LEVELS[i].name}: x=${h.game.player.x}, y=${h.game.player.y}, health=${h.game.player.health}, waypoint=${waypoint}, tags=${w.tokens.map((t) => t.taken)}`,
     );
     h.draw();
     h.game.start();

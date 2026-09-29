@@ -1,7 +1,7 @@
-# Twelve-stage campaign verification
+# Challenge-campaign verification
 
-- Ten automated Node tests: all twelve routes completed using movement inputs and real game collision/damage logic; distinct layouts; checkpoint placement; healing, falling, charms and retries in every stage; progression and final replay; pause and saved unlocks; original jump and grounding tests.
-- JavaScript syntax checks passed.
-- Updated face and responsive layout visually inspected in the in-app browser.
-- Original V1 passed Chromium keyboard/touch testing. A standalone Chromium launch for the campaign was blocked by the local sandbox, so campaign traversal uses the Node simulation harness. Updated optional browser automation is included for independent execution.
-- No physical-device, Safari or Firefox verification.
+- 15 Node tests pass, including a full input-driven traversal of all 12 redesigned stages with actual movement, collision, tag collection, health, and gate rules. Route tests use waypoints and normal keyboard input; they do not teleport Remy to complete the stages.
+- Moving-platform carry, spring activation, crumbling/respawning boards, swim/dive/current physics, reverse exits, required tags, timed gate expiration and safe closing, sprinkler states, retries and checkpoint recovery have focused coverage.
+- New moving-platform and swimming visuals inspected in the in-app browser. No browser console errors in these inspections.
+- The optional Python browser smoke test checks keyboard/touch controls, stage rendering, transitions, saved unlocks and swimming. Its explicit state setup checks transitions, not route traversability; Node tests cover full routes.
+- Physical-phone, Safari and Firefox playthroughs remain unverified.

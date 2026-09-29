@@ -3,7 +3,7 @@ export const WIDTH = 5400,
 export const overlap = (a, b) =>
   a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 export function createWorld(index = 0) {
-  if (index > 0) return buildLevel(index);
+  if (index > 0) return addChallenges(buildLevel(index));
   const ground = [
     [0, 930],
     [1050, 770],
@@ -56,7 +56,7 @@ export function createWorld(index = 0) {
     vx: i % 2 ? 55 : -50,
     alive: true,
   }));
-  return {
+  return addChallenges({
     definition: LEVELS[0],
     index: 0,
     platforms: [...ground, ...ledges],
@@ -70,7 +70,7 @@ export function createWorld(index = 0) {
       { x: 2050, y: 425, w: 40, h: 25, active: false },
       { x: 4280, y: 425, w: 40, h: 25, active: false },
     ],
-  };
+  });
 }
 export function createPlayer(x = 100, y = 400) {
   return {
@@ -89,26 +89,42 @@ export function createPlayer(x = 100, y = 400) {
     power: 0,
   };
 }
-export function movePlayer(p, input, platforms, dt) {
+export function movePlayer(p, input, platforms, dt, environment = {}) {
+  platforms = platforms.filter((r) => !r.inactive);
+  const water = environment.water?.find((r) => overlap(p, r));
+  p.swimming = !!water;
+  const wind = environment.wind?.find((r) => overlap(p, r));
   p.coyote = p.grounded ? 0.11 : Math.max(0, p.coyote - dt);
   p.buffer = Math.max(0, p.buffer - dt);
   if (input.jumpPressed) p.buffer = 0.13;
   const dir = Number(!!input.right) - Number(!!input.left),
-    speed = (input.run ? 330 : 245) * (p.power > 0 ? 1.22 : 1);
+    speed = (water ? 185 : input.run ? 330 : 245) * (p.power > 0 ? 1.22 : 1);
   const target = dir * speed,
     accel = p.grounded ? 1900 : 1200;
   p.vx += Math.max(-accel * dt, Math.min(accel * dt, target - p.vx));
   if (dir) p.facing = dir;
-  if (p.buffer > 0 && p.coyote > 0) {
+  if (!water && p.buffer > 0 && p.coyote > 0) {
     p.vy = -580;
     p.grounded = false;
     p.coyote = 0;
     p.buffer = 0;
     input.onJump?.();
   }
-  if (!input.jump && p.vy < -230) p.vy += 2200 * dt;
-  p.vy = Math.min(850, p.vy + 1550 * dt);
-  p.x += p.vx * dt;
+  if (water) {
+    const swimTarget = input.jump ? -220 : input.down ? 175 : 55;
+    p.vy += (swimTarget - p.vy) * Math.min(1, dt * 7);
+    p.buffer = 0;
+  } else {
+    if (!input.jump && p.vy < -230) p.vy += 2200 * dt;
+    p.vy = Math.min(850, p.vy + 1550 * dt);
+  }
+  p.x +=
+    (p.vx +
+      (water?.current || 0) +
+      (wind && !p.grounded
+        ? wind.force * Math.sin((environment.clock || 0) * 1.4)
+        : 0)) *
+    dt;
   p.x = Math.max(0, Math.min(WIDTH - p.w, p.x));
   for (const r of platforms)
     if (r.ground && overlap(p, r)) {
@@ -119,6 +135,7 @@ export function movePlayer(p, input, platforms, dt) {
   const previousBottom = p.y + p.h;
   p.y += p.vy * dt;
   p.grounded = false;
+  p.support = null;
   for (const r of platforms)
     if (
       p.vy >= 0 &&
@@ -130,6 +147,20 @@ export function movePlayer(p, input, platforms, dt) {
       p.y = r.y - p.h;
       p.vy = 0;
       p.grounded = true;
+      p.support = r;
+      if (r.kind === "spring") {
+        p.vy = -850;
+        p.grounded = false;
+        p.support = null;
+        input.onJump?.();
+      }
+    }
+  for (const r of platforms)
+    if (r.kind === "spring" && p.vy >= 0 && overlap(p, r)) {
+      p.vy = -850;
+      p.grounded = false;
+      p.support = null;
+      input.onJump?.();
     }
   p.invincible = Math.max(0, p.invincible - dt);
   p.power = Math.max(0, p.power - dt);
@@ -370,19 +401,17 @@ function buildLevel(index) {
         h: 16,
         taken: false,
       });
-  const enemies = ground
-    .slice(0, -1)
-    .map((g, i) => ({
-      x: g.x + g.w * 0.65,
-      y: 420,
-      w: 34,
-      h: 30,
-      min: g.x + 160,
-      max: g.x + g.w - 75,
-      type: ["cat", "chicken", "wasp"][(index + i) % 3],
-      vx: (i % 2 ? 1 : -1) * (45 + index * 2),
-      alive: true,
-    }));
+  const enemies = ground.slice(0, -1).map((g, i) => ({
+    x: g.x + g.w * 0.65,
+    y: 420,
+    w: 34,
+    h: 30,
+    min: g.x + 160,
+    max: g.x + g.w - 75,
+    type: ["cat", "chicken", "wasp"][(index + i) % 3],
+    vx: (i % 2 ? 1 : -1) * (45 + index * 2),
+    alive: true,
+  }));
   const checkpoints = [
     ground[Math.floor(ground.length / 3)],
     ground[Math.floor((ground.length * 2) / 3)],
@@ -399,4 +428,298 @@ function buildLevel(index) {
     checkpoints,
     charms,
   };
+}
+
+export const CHALLENGES = [
+  [
+    "Find your paws",
+    "Learn to run, jump and bounce past the garden animals. Follow the biscuits to the exit.",
+  ],
+  [
+    "Catch a ride",
+    "Ride the blue moving platforms across the long lavender ditch. Wait for one to come close before jumping.",
+  ],
+  [
+    "Keep moving",
+    "The cracked wooden bridge crumbles a moment after you step on it. Keep hopping; missing boards return after 3 seconds.",
+  ],
+  [
+    "Spring into the vines",
+    "Green spring pads launch you higher. Bounce up to collect the golden tag, then reach the exit.",
+  ],
+  [
+    "Wrong-way market",
+    "Start on the right and travel LEFT. Find both golden tags around the market stalls before leaving.",
+  ],
+  [
+    "Up the aqueduct",
+    "Ride the blue lift to the upper balcony and collect its golden tag. Step off at the top.",
+  ],
+  [
+    "Doggy paddle",
+    "Swim through the bay: hold JUMP to paddle up, release to sink, or hold DOWN to dive. Find both underwater tags.",
+  ],
+  [
+    "Against the current",
+    "Swim LEFT against the harbour current. Find the two underwater tags and avoid the pink jellyfish.",
+  ],
+  [
+    "Ride the breeze",
+    "Spring pads and gusts carry you through the cliffs. Watch the wind arrows and collect the high golden tag.",
+  ],
+  [
+    "Watch the rhythm",
+    "Garden sprinklers pulse on and off. Orange means a burst is coming; jump over them or wait for blue.",
+  ],
+  [
+    "Beat the gate",
+    "Travel LEFT. Step on the brass switch to open the gate for 8 seconds, then run through before it closes.",
+  ],
+  [
+    "The final stretch",
+    "Ride moving platforms, swim for a tag and time the sprinklers. Collect all three golden tags to bring Remy home.",
+  ],
+];
+function addChallenges(w) {
+  const n = w.index;
+  if (n > 0)
+    w.platforms = [
+      { x: 0, y: 450, w: WIDTH, h: 150, ground: true },
+      ...w.platforms.filter((r) => !r.ground),
+    ];
+  w.challenge = CHALLENGES[n];
+  w.clock = 0;
+  w.direction = [4, 7, 10].includes(n) ? -1 : 1;
+  w.spawn = { x: 100, y: 400 };
+  w.goal = { x: 5180, y: 340, w: 100, h: 110 };
+  w.water = [];
+  w.wind = [];
+  w.hazards = [];
+  w.tokens = [];
+  w.switches = [];
+  const cut = (a, b) => {
+    const result = [];
+    for (const r of w.platforms) {
+      if (r.x + r.w <= a || r.x >= b) {
+        result.push(r);
+        continue;
+      }
+      if (r.ground) {
+        if (r.x < a) result.push({ ...r, w: a - r.x });
+        if (r.x + r.w > b) result.push({ ...r, x: b, w: r.x + r.w - b });
+      }
+    }
+    w.platforms = result;
+    for (const key of ["biscuits", "enemies", "charms", "checkpoints"])
+      w[key] = w[key].filter((r) => r.x < a - 50 || r.x > b + 50);
+  };
+  const tag = (x, y, ride) =>
+    w.tokens.push({ x, y, w: 24, h: 24, taken: false, ride });
+  const bridge = (a, b, kind) => {
+    cut(a, b);
+    for (let x = a + 60, i = 0; x < b - 20; x += 165, i++)
+      w.platforms.push({
+        x,
+        y: 425,
+        w: 110,
+        h: 20,
+        kind,
+        baseX: x,
+        baseY: 425,
+        axis: "x",
+        range: kind === "moving" ? 35 : 0,
+        phase: i * 0.5,
+        speed: 0.85,
+      });
+  };
+  const spring = (x) =>
+    w.platforms.push({ x, y: 432, w: 65, h: 18, kind: "spring" });
+  const pool = (a, b, current = 0) => {
+    cut(a, b);
+    w.water.push({ x: a, y: 320, w: b - a, h: 230, current });
+    w.platforms.push({ x: a, y: 515, w: b - a, h: 50, ground: true });
+    // Exit steps below the waterline allow a gentle climb back onto either bank.
+    w.platforms.push(
+      { x: a, y: 480, w: 70, h: 18 },
+      { x: b - 70, y: 480, w: 70, h: 18 },
+    );
+    for (let x = a + 80; x < b - 40; x += 130)
+      w.biscuits.push({ x, y: 410 + (x % 3) * 20, w: 20, h: 16, taken: false });
+  };
+  const sprinkler = (x, phase = 0) =>
+    w.hazards.push({
+      x,
+      y: 382,
+      w: 36,
+      h: 68,
+      kind: "sprinkler",
+      phase,
+      active: false,
+    });
+  if (n === 1) bridge(2100, 3060, "moving");
+  if (n === 2) bridge(2180, 3140, "crumble");
+  if (n === 3 || n === 8) {
+    // A tall prize balcony cannot be reached with an ordinary jump.
+    const x = n === 3 ? 2250 : 3150;
+    cut(x - 100, x + 650);
+    w.platforms.push({ x: x - 100, y: 450, w: 750, h: 150, ground: true });
+    spring(x);
+    w.platforms.push({ x: x + 80, y: 240, w: 220, h: 22 });
+    tag(x + 165, 202);
+    if (n === 8) w.wind.push({ x: 700, y: 0, w: 4050, h: 450, force: 80 });
+  }
+  if (n === 4) {
+    tag(1640, 245);
+    tag(3540, 325);
+  }
+  if (n === 5) {
+    cut(2050, 2900);
+    w.platforms.push({ x: 2050, y: 450, w: 850, h: 150, ground: true });
+    const lift = {
+      x: 2330,
+      y: 430,
+      w: 150,
+      h: 22,
+      kind: "moving",
+      baseX: 2330,
+      baseY: 325,
+      axis: "y",
+      range: 105,
+      phase: Math.PI / 2,
+      speed: 0.65,
+    };
+    w.platforms.push(lift, { x: 2490, y: 220, w: 260, h: 22 });
+    tag(2580, 182);
+  }
+  if (n === 6 || n === 7) {
+    pool(1500, 3750, n === 7 ? 65 : 0);
+    tag(2050, 463);
+    tag(3200, 450);
+    if (n === 7)
+      for (const x of [2400, 2900, 3470])
+        w.hazards.push({
+          x,
+          y: 390,
+          baseY: 390,
+          w: 32,
+          h: 38,
+          kind: "jellyfish",
+          phase: x / 100,
+          active: true,
+        });
+  }
+  if (n === 9)
+    for (const x of [600, 1550, 2500, 3550, 4600]) sprinkler(x, x / 400);
+  if (n === 10) {
+    cut(4200, 5100);
+    w.platforms.push({ x: 4200, y: 450, w: 900, h: 150, ground: true });
+    const gate = {
+      x: 4920,
+      y: 200,
+      w: 35,
+      h: 250,
+      ground: true,
+      kind: "gate",
+      inactive: false,
+    };
+    w.platforms.push(gate);
+    w.switches.push({ x: 4290, y: 430, w: 65, h: 20, remaining: 0, gate });
+  }
+  if (n === 11) {
+    bridge(1250, 2070, "moving");
+    pool(2750, 3600, 30);
+    tag(1680, 342);
+    tag(3160, 460);
+    tag(4590, 380);
+    for (const x of [2370, 4070, 4640]) sprinkler(x, x / 400);
+  }
+  // Put safe checkpoint islands immediately before/after the central challenge.
+  if (n > 0) {
+    w.checkpoints = [
+      { x: 1100, y: 425, w: 40, h: 25, active: false },
+      { x: 3900, y: 425, w: 40, h: 25, active: false },
+    ];
+    for (const c of w.checkpoints) {
+      if (
+        !w.platforms.some(
+          (r) =>
+            r.ground && r.y === 450 && c.x >= r.x && c.x + c.w <= r.x + r.w,
+        )
+      )
+        w.platforms.push({ x: c.x - 50, y: 450, w: 150, h: 150, ground: true });
+    }
+  }
+  if (w.direction === -1) {
+    for (const key of [
+      "platforms",
+      "biscuits",
+      "enemies",
+      "charms",
+      "checkpoints",
+      "water",
+      "wind",
+      "hazards",
+      "tokens",
+      "switches",
+    ])
+      for (const r of w[key]) {
+        r.x = WIDTH - r.x - r.w;
+        if (r.baseX !== undefined) r.baseX = WIDTH - r.baseX - r.w;
+        if (r.min !== undefined) {
+          const min = r.min;
+          r.min = WIDTH - r.max - r.w;
+          r.max = WIDTH - min - r.w;
+          r.vx = -r.vx;
+        }
+        // Positive current deliberately opposes leftward swimmers.
+      }
+    w.spawn = { x: WIDTH - 143, y: 400 };
+    w.goal.x = 100;
+  }
+  return w;
+}
+export function updateWorld(w, p, dt) {
+  w.clock += dt;
+  for (const r of w.platforms) {
+    const oldX = r.x,
+      oldY = r.y;
+    if (r.kind === "moving") {
+      const offset = Math.sin(w.clock * r.speed + r.phase) * r.range;
+      r.x = r.baseX + (r.axis === "x" ? offset : 0);
+      r.y = r.baseY + (r.axis === "y" ? offset : 0);
+    }
+    if (r.kind === "crumble") {
+      if (r.cooldown > 0) {
+        r.cooldown -= dt;
+        r.inactive = r.cooldown > 0;
+        if (!r.inactive) r.crack = 0;
+      } else if (p.support === r || r.crack > 0) {
+        r.crack = (r.crack || 0) + dt;
+        if (r.crack > 0.7) {
+          r.inactive = true;
+          r.cooldown = 3;
+        }
+      }
+    }
+    if (p.support === r && p.grounded && !r.inactive) {
+      p.x += r.x - oldX;
+      p.y += r.y - oldY;
+    }
+  }
+  for (const h of w.hazards) {
+    if (h.kind === "sprinkler") {
+      const phase = (w.clock + h.phase) % 3.6;
+      h.active = phase > 1.8;
+      h.warning = phase > 1.3 && !h.active;
+    } else h.y = h.baseY + Math.sin(w.clock * 1.6 + h.phase) * 45;
+  }
+  for (const s of w.switches) {
+    s.remaining = Math.max(0, s.remaining - dt);
+    if (overlap(p, s)) s.remaining = 8;
+    // A closing gate never traps Remy inside its collision box.
+    s.gate.inactive = s.remaining > 0 || overlap(p, s.gate);
+  }
+}
+export function goalReached(w, p) {
+  return overlap(p, w.goal) && w.tokens.every((t) => t.taken);
 }

@@ -29,22 +29,29 @@ with sync_playwright() as pw:
  page.evaluate('Object.assign(__remy.player,{x:5185,y:416,vx:0,vy:0});__remy.step(1/120)')
  assert page.evaluate('__remy.state')=='complete'
  page.get_by_role('button',name='Next adventure').click()
+ page.get_by_role('button',name='Let’s go, Remy').click()
  page.evaluate('Object.assign(__remy.player,{health:1,y:700});__remy.step(1/120)')
  assert page.evaluate('__remy.state')=='over'
  page.get_by_role('button',name='Try again').click()
  assert page.evaluate('__remy.player.health')==3
- # All-stage traversal using real keyboard events and the actual simulation.
+ # Mechanics render and state smoke checks. Full input-driven routes run in Node.
  for stage in range(12):
   page.evaluate('(i)=>__remy.loadLevel(i)',stage)
-  page.evaluate('''window.routeTimer=setInterval(()=>{const p=__remy.player,w=__remy.world;const ev=(type,code)=>window.dispatchEvent(new KeyboardEvent(type,{code}));ev("keydown","ArrowRight");ev("keydown","ShiftLeft");const footing=w.platforms.find(r=>Math.abs(p.y+p.h-r.y)<2&&p.x+p.w>r.x&&p.x<r.x+r.w);const danger=w.enemies.some(e=>e.alive&&e.x>p.x&&e.x-p.x<110&&Math.abs(e.y-p.y)<70);if(p.grounded&&((footing&&footing.x+footing.w-p.x<105)||danger)){ev("keyup","Space");ev("keydown","Space");}},16)''')
-  page.wait_for_function('__remy.state === "complete" || __remy.state === "over"',timeout=45000)
-  result=page.evaluate('({state:__remy.state,level:__remy.level,health:__remy.player.health})')
-  page.evaluate('clearInterval(window.routeTimer)')
-  print('Route:',result)
-  assert result['state']=='complete'
+  page.wait_for_timeout(40)
+  assert page.evaluate('__remy.level')==stage
+  assert page.locator('#challenge-status').inner_text()
+  page.evaluate('''(()=>{const w=__remy.world;w.tokens.forEach(t=>t.taken=true);Object.assign(__remy.player,{x:w.goal.x,y:400,vx:0,vy:0});__remy.step(1/120);})()''')
+  assert page.evaluate('__remy.state')=='complete'
  page.reload()
  page.locator('summary').click()
  assert page.locator('#level-list button:enabled').count()==12
+ page.goto('http://localhost:4173/?test&stage=6&x=2300')
+ page.wait_for_timeout(400)
+ assert page.evaluate('__remy.player.swimming')
+ before=page.evaluate('__remy.player.y')
+ page.keyboard.down('Space');page.wait_for_timeout(500);page.keyboard.up('Space')
+ assert page.evaluate('__remy.player.y')<before
+ page.screenshot(path=str(root/'test-results/water-preview.png'),full_page=True)
  mobile=browser.new_page(viewport={'width':390,'height':844},is_mobile=True,has_touch=True,device_scale_factor=1)
  mobile.on('pageerror',lambda e:errors.append(str(e)))
  mobile.goto('http://localhost:4173/?test')

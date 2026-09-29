@@ -5,6 +5,8 @@ import {
   createWorld,
   createPlayer,
   movePlayer,
+  updateWorld,
+  goalReached,
   overlap,
 } from "./world.js";
 const $ = (s) => document.querySelector(s),
@@ -83,7 +85,7 @@ function levelMenu() {
       String(i + 1).padStart(2, "0") +
       " · " +
       l.name +
-      (records[i] ? " ✓" : "");
+      (Object.prototype.hasOwnProperty.call(records, i) ? " ✓" : "");
     b.onclick = () => {
       level = i;
       resetLevel();
@@ -94,11 +96,12 @@ function levelMenu() {
 }
 function resetLevel() {
   world = createWorld(level);
-  p = createPlayer();
+  p = createPlayer(world.spawn.x, world.spawn.y);
+  p.facing = world.direction;
   score = 0;
   elapsed = 0;
-  camera = 0;
-  respawn = { x: 100, y: 400 };
+  camera = Math.max(0, Math.min(WIDTH - viewW, p.x - viewW * 0.5));
+  respawn = { ...world.spawn };
   keys.clear();
   pointers.clear();
   jumpPressed = false;
@@ -118,15 +121,13 @@ function show(kind) {
     start: [
       `STAGE ${level + 1} / 12 · ${world.definition.region}`,
       world.definition.name,
-      level === 0
-        ? "Twelve little adventures. One very good dog.<br>Follow the biscuits all the way home."
-        : "A fresh trail, a new view, and biscuits to find.<br>Reach the sign at the far end to continue.",
+      world.challenge[1],
       "Let’s go, Remy",
     ],
     paused: [
       "A MOMENT IN THE SHADE",
       "Catch your breath.",
-      "Your adventure will be right here.",
+      world.challenge[1],
       "Keep exploring",
     ],
     over: [
@@ -148,11 +149,11 @@ function show(kind) {
   $("#panel-kicker").textContent = data[0];
   $("#panel-title").innerHTML = data[1];
   $("#panel-copy").innerHTML = data[2];
-  $("#play").innerHTML = data[3] + " <span>→</span>";
+  $("#play").innerHTML = data[3] + (world.direction===-1?" <span>←</span>":" <span>→</span>");
   $("#panel-hint").textContent =
     kind === "complete"
       ? "YOUR PROGRESS IS SAVED ON THIS DEVICE."
-      : "← → move · SPACE jump · SHIFT run";
+      : `${world.direction === -1 ? "← HEAD LEFT" : "HEAD RIGHT →"} · ${world.challenge[0]}`;
   $("#pause").setAttribute(
     "aria-label",
     kind === "paused" ? "Resume game" : "Pause game",
@@ -161,7 +162,12 @@ function show(kind) {
 }
 function start() {
   unlock();
-  if (state === "complete") level = level === 11 ? 0 : level + 1;
+  if (state === "complete") {
+    level = level === 11 ? 0 : level + 1;
+    resetLevel();
+    show("start");
+    return;
+  }
   if (state !== "paused") resetLevel();
   state = "playing";
   $("#overlay").hidden = true;
@@ -189,6 +195,8 @@ const mapping = {
   Space: "jump",
   ArrowUp: "jump",
   KeyW: "jump",
+  ArrowDown: "down",
+  KeyS: "down",
   ShiftLeft: "run",
   ShiftRight: "run",
 };
@@ -243,11 +251,27 @@ function updateHud() {
     String(level + 1).padStart(2, "0") +
     " / " +
     world.definition.name.toUpperCase();
+  const progress = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.floor(
+        ((world.direction === 1 ? p.x - 100 : WIDTH - 143 - p.x) / 5080) * 100,
+      ),
+    ),
+  );
+  const tags = world.tokens.filter((t) => t.taken).length;
   $("#area").textContent =
-    world.definition.region +
-    " · " +
-    Math.min(100, Math.floor((p.x / 5180) * 100)) +
-    "%";
+    `${world.direction === -1 ? "←" : "→"} ${progress}% · ${world.tokens.length ? `Tags ${tags}/${world.tokens.length}` : world.challenge[0]}`;
+  const gate = world.switches[0];
+  $("#challenge-status").textContent =
+    gate?.remaining > 0
+      ? `GATE OPEN · ${Math.ceil(gate.remaining)}s`
+      : p.swimming
+        ? "SWIMMING · Hold jump to paddle up"
+        : world.direction === -1
+          ? "← EXIT TO THE LEFT"
+          : world.challenge[0];
   $("#power").hidden = p.power <= 0;
   $("#power span").style.transform = `scaleX(${p.power / 10})`;
 }
@@ -263,6 +287,8 @@ function hurt(fall = false) {
     p.x = respawn.x;
     p.y = respawn.y;
     p.vx = p.vy = 0;
+    p.support = null;
+    p.grounded = false;
     camera = Math.max(0, p.x - viewW * 0.3);
     toast("Back to your water bowl. You’ve got this!");
   } else {
@@ -277,6 +303,7 @@ function step(dt) {
   elapsed += dt;
   toastTimer -= dt;
   if (toastTimer <= 0) $("#toast").classList.remove("show");
+  updateWorld(world, p, dt);
   const oldY = p.y + p.h;
   movePlayer(
     p,
@@ -285,11 +312,13 @@ function step(dt) {
       right: held("right"),
       run: held("run"),
       jump: held("jump"),
+      down: held("down"),
       jumpPressed,
       onJump: () => tone(440, 0.13, "triangle"),
     },
     world.platforms,
     dt,
+    world,
   );
   jumpPressed = false;
   if (p.y > HEIGHT + 90) hurt(true);
@@ -297,6 +326,25 @@ function step(dt) {
     updateHud();
     return;
   }
+  for (const t of world.tokens)
+    if (!t.taken && overlap(p, t)) {
+      t.taken = true;
+      tone(1200, 0.25);
+      toast(
+        `Golden tag ${world.tokens.filter((a) => a.taken).length}/${world.tokens.length}!`,
+      );
+    }
+  for (const h of world.hazards) if (h.active && overlap(p, h)) hurt();
+  if (state !== "playing") {
+    updateHud();
+    return;
+  }
+  if (
+    overlap(p, world.goal) &&
+    !world.tokens.every((t) => t.taken) &&
+    toastTimer <= 0
+  )
+    toast("Find the remaining golden tags to open the exit.");
   for (const b of world.biscuits) {
     if (b.taken) continue;
     if (p.power > 0 && Math.hypot(b.x - p.x, b.y - p.y) < 145) {
@@ -340,7 +388,7 @@ function step(dt) {
       } else hurt();
     }
   }
-  if (p.x > 5180 && state === "playing") {
+  if (goalReached(world, p) && state === "playing") {
     unlocked = Math.max(unlocked, Math.min(11, level + 1));
     records[level] = Math.max(records[level] || 0, score);
     saveProgress();
@@ -348,7 +396,14 @@ function step(dt) {
     tone(880, 0.5);
   }
   camera +=
-    (Math.max(0, Math.min(WIDTH - viewW, p.x - viewW * 0.32)) - camera) *
+    (Math.max(
+      0,
+      Math.min(
+        WIDTH - viewW,
+        p.x - viewW * (world.direction === 1 ? 0.32 : 0.68),
+      ),
+    ) -
+      camera) *
     Math.min(1, dt * 6);
   updateHud();
 }
@@ -432,14 +487,18 @@ function dog(x, y, scale = 1) {
     ellipse(0, 0, 33 + Math.sin(time * 9) * 2, 30, "#c3a6e354");
   }
   if (p.invincible > 0 && Math.floor(time * 12) % 2) ctx.globalAlpha = 0.45;
-  const running = state === "playing" && Math.abs(p.vx) > 20;
-  const stride = running ? Math.sin(time * Math.max(5, Math.abs(p.vx) * 0.08)) : 0;
+  const running = state === "playing" && (Math.abs(p.vx) > 20 || p.swimming);
+  const stride = running
+    ? Math.sin(time * Math.max(5, Math.abs(p.vx) * 0.08))
+    : 0;
   const airborne = state === "playing" && !p.grounded;
   // Four separate hips and paws: far-side legs behind the body, near-side in front.
   // Keep the swing small enough that the two pairs never collapse into one silhouette.
   function leg(hip, phase, far) {
-    const footX = hip + phase * 2;
-    const footY = (far ? 21 : 24) - (airborne ? 4 : Math.max(0, phase) * 2);
+    const footX = hip + phase * (p.swimming ? 4 : 2);
+    const footY =
+      (far ? 21 : 24) -
+      (p.swimming ? 7 + phase * 2 : airborne ? 4 : Math.max(0, phase) * 2);
     const fur = far ? "#cfd5ce" : "#fffef8";
     line(hip, 7, footX, footY - 2, fur, far ? 5 : 6);
     ellipse(footX + 1, footY, far ? 3.5 : 4, 2.7, fur);
@@ -565,8 +624,16 @@ function draw() {
   drawScenery();
   ctx.save();
   ctx.translate(-camera, 0);
+  drawChallenges();
   for (const r of world.platforms) {
+    if (r.inactive) continue;
     if (r.x + r.w < camera - 30 || r.x > camera + viewW + 30) continue;
+    if (r.kind === "gate") {
+      rect(r.x, r.y, r.w, r.h, "#a6805c", 4);
+      for (let y = r.y + 10; y < r.y + r.h; y += 28)
+        line(r.x, y, r.x + r.w, y, "#e4bd82", 4);
+      continue;
+    }
     if (r.ground) {
       rect(r.x, r.y, r.w, r.h, world.definition.ground);
       rect(r.x, r.y + 8, r.w, 12, "#b1ad77");
@@ -576,14 +643,45 @@ function draw() {
         if (Math.floor(xx) % 4 === 0) lavender(xx, r.y, 1);
       }
     } else {
-      rect(r.x, r.y, r.w, r.h, "#c9bb99", 5);
+      rect(
+        r.x,
+        r.y,
+        r.w,
+        r.h,
+        r.kind === "moving"
+          ? "#6b9fad"
+          : r.kind === "crumble"
+            ? "#ba9574"
+            : r.kind === "spring"
+              ? "#72aa71"
+              : "#c9bb99",
+        5,
+      );
+      if (r.kind === "moving")
+        text(
+          r.axis === "y" ? "↕" : "↔",
+          r.x + r.w / 2 - 7,
+          r.y + 17,
+          18,
+          "#fff8db",
+        );
+      if (r.kind === "crumble") {
+        for (let x = r.x + 15; x < r.x + r.w; x += 25)
+          line(x, r.y + 4, x + 8, r.y + 18, r.crack ? "#ae504a" : "#786757", 2);
+      }
+      if (r.kind === "spring") text("↑ ↑", r.x + 10, r.y + 15, 17, "#fff8db");
       rect(r.x, r.y, r.w, 6, "#8b9b77", 3);
       for (let xx = r.x + 20; xx < r.x + r.w; xx += 35)
         line(xx, r.y + 8, xx, r.y + 20, "#b3a482", 1);
     }
   }
   for (const x of [80, 520, 1270, 2180, 2630, 3400, 4480, 4930])
-    tree(x, 450, x === 80 ? 1.6 : 1.1);
+    if (
+      world.platforms.some(
+        (r) => r.ground && r.y === 450 && x >= r.x && x <= r.x + r.w,
+      )
+    )
+      tree(x, 450, x === 80 ? 1.6 : 1.1);
   for (const c of world.checkpoints) {
     rect(c.x - 2, 432, 44, 15, c.active ? "#6d9eae" : "#91b3b9", 5);
     ellipse(c.x + 20, 433, 21, 5, "#c9e8e9");
@@ -601,20 +699,23 @@ function draw() {
       ellipse(c.x + 12, c.y + 30, 8, 3, "#ad87b9");
     }
   for (const e of world.enemies) if (e.alive) enemy(e);
-  if (level === 11) house(5190, 450, 1.65);
-  else {
-    rect(5190, 370, 12, 80, "#9c9271");
-    rect(5170, 351, 85, 34, "#f5ecd0", 5);
-    text("NEXT →", 5180, 373, 16, "#58776a");
-  }
-  rect(5145, 393, 5, 58, "#9b8f6d");
-  rect(5100, 373, 100, 30, "#fff0ca", 5);
-  text(level === 11 ? "CHEZ REMY" : "BON VOYAGE", 5110, 393, 13, "#647657");
-  ellipse(5238, 449, 22, 6, "#b8775c");
+  const gx = world.goal.x;
+  if (level === 11) house(gx + 10, 450, 1.65);
+  rect(gx + 35, 373, 5, 77, "#9c9271");
+  rect(gx - 15, 351, 130, 34, "#f5ecd0", 5);
+  text(
+    level === 11 ? "CHEZ REMY" : world.direction === -1 ? "← EXIT" : "EXIT →",
+    gx - 3,
+    373,
+    16,
+    "#58776a",
+  );
+  if (world.tokens.some((t) => !t.taken))
+    text("TAGS NEEDED", gx - 5, 404, 12, "#936746");
   if (state === "start") {
     const save = p.facing;
     p.facing = 1;
-    dog(Math.min(760, viewW - 90), 403, 1.7);
+    dog(camera + Math.min(760, viewW - 90), 403, 1.7);
     p.facing = save;
   } else dog(p.x, p.y);
   ctx.restore();
@@ -773,4 +874,98 @@ function drawScenery() {
     }
   }
   ctx.restore();
+}
+
+function drawChallenges() {
+  for (const w of world.water) {
+    rect(w.x, w.y, w.w, w.h, "#69b8d6b8");
+    line(w.x, w.y, w.x + w.w, w.y, "#e5faff", 3);
+    for (let x = w.x + 20; x < w.x + w.w; x += 65) {
+      ellipse(x, w.y + Math.sin(time * 3 + x) * 3, 17, 3, "#caedf1");
+      for (let j = 0; j < 3; j++)
+        ellipse(
+          x + Math.sin(time + j) * 8,
+          w.y + 30 + ((j * 67 + time * 16) % 150),
+          2,
+          3,
+          "#d3f5f09c",
+        );
+    }
+    if (w.current)
+      for (let x = w.x + 60; x < w.x + w.w; x += 170)
+        text(w.current > 0 ? "→" : "←", x, w.y + 100, 24, "#d8f3f1");
+  }
+  for (const w of world.wind)
+    for (let x = w.x + 30; x < w.x + w.w; x += 200)
+      text(
+        Math.sin(world.clock * 1.4) > 0 ? "→ →" : "← ←",
+        x,
+        215,
+        20,
+        "#ffffff99",
+      );
+  for (const h of world.hazards) {
+    if (h.kind === "sprinkler") {
+      rect(h.x, h.y + h.h - 8, h.w, 8, h.warning ? "#daa351" : "#709daa", 4);
+      if (h.active)
+        for (let j = 0; j < 4; j++)
+          line(
+            h.x + 4 + j * 8,
+            h.y + h.h,
+            h.x + 3 + j * 8,
+            h.y + Math.sin(time * 15 + j) * 5,
+            "#cf7d899e",
+            5,
+          );
+      if (h.warning) text("!", h.x + 13, h.y + h.h - 17, 22, "#b67b30");
+    } else {
+      ellipse(h.x + 16, h.y + 13, 19, 14, "#d896b5");
+      for (let j = 0; j < 4; j++)
+        line(
+          h.x + j * 9,
+          h.y + 16,
+          h.x + j * 9 + Math.sin(time * 5 + j) * 5,
+          h.y + 35,
+          "#c17f9e",
+          3,
+        );
+    }
+  }
+  for (const t of world.tokens)
+    if (!t.taken) {
+      ellipse(t.x + 12, t.y + 12, 15, 15, "#fff2b94d");
+      rect(t.x + 2, t.y + 2, 20, 20, "#dba94e", 6);
+      ellipse(t.x + 12, t.y + 12, 5, 5, "#fff3be");
+    }
+  for (const s of world.switches) {
+    rect(s.x, s.y, s.w, s.h, s.remaining > 0 ? "#81b88a" : "#d3a45b", 5);
+    text(
+      s.remaining > 0 ? `${Math.ceil(s.remaining)}s` : "STEP",
+      s.x + 10,
+      s.y + 14,
+      12,
+      "#fff8e4",
+    );
+  }
+}
+
+// A reproducible scene preview for development; normal visits keep saved unlocks.
+const previewParams = new URLSearchParams(location.search);
+if (previewParams.has("test") && previewParams.has("stage")) {
+  const stage = Number(previewParams.get("stage"));
+  if (Number.isInteger(stage) && stage >= 0 && stage < LEVELS.length) {
+    level = stage;
+    resetLevel();
+    show("start");
+  }
+}
+if (previewParams.has("test") && previewParams.has("x")) {
+  const x = Number(previewParams.get("x"));
+  if (Number.isFinite(x)) {
+    p.x = Math.max(0, Math.min(WIDTH - p.w, x));
+    p.y = 360;
+    camera = Math.max(0, Math.min(WIDTH - viewW, p.x - viewW * 0.5));
+    state = "playing";
+    $("#overlay").hidden = true;
+  }
 }
