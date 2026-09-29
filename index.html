@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#f7f3e8" />
+    <meta
+      name="description"
+      content="A little white dog. A very big adventure. An original playable platformer set in Provence."
+    />
+    <title>Remy’s Great Escape</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <a class="brand" href="./" aria-label="Remy's Great Escape home"
+          ><span class="brand-mark">r.</span> LITTLE PAW GAMES</a
+        ><span class="edition">AN ADVENTURE IN PROVENCE <i>✦</i> 12 STAGES</span
+        ><button id="sound" aria-pressed="false">Sound off ♫</button>
+      </header>
+      <section class="intro">
+        <div>
+          <p class="eyebrow">SMALL DOG. BIG WORLD.</p>
+          <h1>Remy’s <em>Great Escape.</em></h1>
+        </div>
+        <p>
+          A wrong turn at the garden gate.<br />Twelve trails home before
+          dinner.
+        </p>
+      </section>
+      <section class="game-shell" aria-label="Remy's Great Escape game">
+        <div class="hud">
+          <div>
+            <span class="level-label">01 / THE LAVENDER WAY</span
+            ><span id="area">The garden gate</span>
+          </div>
+          <div class="stats">
+            <span id="health" aria-label="3 hearts">♥ ♥ ♥</span
+            ><span class="divider"></span
+            ><span>✦ <b id="score">00</b><small id="total"></small></span
+            ><button id="pause" aria-label="Pause game">Ⅱ</button>
+          </div>
+        </div>
+        <div class="viewport">
+          <canvas
+            id="game"
+            width="1100"
+            height="550"
+            tabindex="0"
+            aria-label="Side scrolling platformer. Move with arrows or A D. Jump with Space. Dash with Shift. Pause with Escape."
+          ></canvas>
+          <div id="overlay" class="overlay">
+            <div class="panel">
+              <p id="panel-kicker" class="eyebrow">THE GARDEN GATE IS OPEN…</p>
+              <h2 id="panel-title">Adventure is<br />just a paw away.</h2>
+              <p id="panel-copy">
+                Follow the biscuits through lavender country.<br />Get our
+                little white dog home before dinner.
+              </p>
+              <button id="play" class="primary">
+                Let’s go, Remy <span>→</span>
+              </button>
+              <p class="micro" id="panel-hint">
+                ← → move &nbsp; · &nbsp; SPACE jump &nbsp; · &nbsp; SHIFT run
+              </p>
+            </div>
+          </div>
+          <div id="toast" role="status" aria-live="polite"></div>
+          <div id="power" class="power" hidden>LAVENDER ZOOM <span></span></div>
+        </div>
+        <div class="touch-controls" aria-label="Touch game controls">
+          <div>
+            <button data-control="left" aria-label="Move left">←</button
+            ><button data-control="right" aria-label="Move right">→</button>
+          </div>
+          <div>
+            <button data-control="run" aria-label="Run">RUN</button
+            ><button data-control="jump" aria-label="Jump">↑</button>
+          </div>
+        </div>
+      </section>
+      <footer>
+        <p>
+          <span class="key">A</span><span class="key">D</span> move
+          <span class="key wide">SPACE</span> jump
+          <span class="key wide">SHIFT</span> run
+          <span class="key">P</span> pause
+        </p>
+        <p>
+          Made for a little adventure. <span>✦</span> No downloads. Just play.
+        </p>
+      </footer>
+      <details class="journey">
+        <summary>
+          The journey <span>12 stages · progress saved on this device</span>
+        </summary>
+        <div id="level-list"></div>
+      </details>
+      <div class="field-notes">
+        <span>FIELD NOTES</span>
+        <p>
+          <b>Follow your nose.</b> Biscuits mark the way. Hold jump to leap
+          higher.
+        </p>
+        <p>
+          <b>A little flower power.</b> Lavender charms protect you and pull
+          biscuits closer.
+        </p>
+        <p>
+          <b>Take a breather.</b> Blue water bowls save your progress and refill
+          your hearts.
+        </p>
+      </div>
+    </main>
+    <script type="module" src="src/game.js"></script>
+  </body>
+</html>

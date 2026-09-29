@@ -1,0 +1,67 @@
+# Remy’s Great Escape
+
+[Play free in your browser](https://LAM2026-codex.github.io/remys-great-escape/)
+
+A small **white dog**, a sunny afternoon, and the long way home. An original, 12-level browser platformer set in a storybook Provence, built with Canvas, CSS and vanilla JavaScript. No build step, game libraries, accounts, or backend.
+
+## Play locally
+
+From this directory, run `npm start` (requires Python 3), then open http://localhost:4173. Alternatively run `python3 -m http.server 4173`. Use a local server rather than opening the HTML file directly because the game uses JavaScript modules. Node is only required for the optional checks.
+
+- **Move:** A/D or left/right arrows.
+- **Jump:** Space, W or up arrow. Hold for height; release for a short hop.
+- **Run:** hold Shift.
+- **Pause/resume:** P, Escape or the pause button. Leaving the tab automatically pauses.
+- **Touch:** hold the direction and jump buttons; combine RUN with movement. Landscape offers a wider view, but portrait works too.
+- **Sound:** opt in with the sound button. All sound effects are synthesized locally after interaction.
+
+Follow the biscuit trails to Remy’s house at the far right. Collectibles are optional. Jump on cats, chickens, or wasps to bounce them out of the way, or avoid them. Three hearts protect you from mistakes. Falls cost one heart and return you to the latest checkpoint. Blue water bowls save a checkpoint and refill health once per attempt. Lavender charms grant ten seconds of protection, faster running and a biscuit magnet. Falling still costs a heart. Game over restarts the current stage; checkpoints are retained only during that attempt. The finish screen reports biscuits and time and continues to the next stage. Completed-stage unlocks and best biscuit counts persist after reload; mid-level positions do not.
+
+## GitHub Pages
+
+1. Create an empty GitHub repository, for example `remys-great-escape`.
+2. Push this entire project to its `main` branch (or upload the files via GitHub).
+3. In **Settings → Pages → Build and deployment**, select **GitHub Actions**.
+4. Run the included **Deploy game to GitHub Pages** workflow from Actions, or push a new commit. The workflow checks the code, runs physics tests, and publishes only the game files.
+5. Your game will be available at `https://LAM2026-codex.github.io/remys-great-escape/`.
+
+All game paths are relative, so a repository subdirectory works. You may also select “Deploy from a branch”, `main`, `/ (root)` for an Actions-free deployment.
+
+## Development
+
+`npm test` runs the dependency-free Node physics/level checks. `npm run check` checks JavaScript syntax. The simulation uses a fixed 120 Hz step and caps catch-up time after stalls. Art scales to device pixel ratio (capped at 2); portrait displays a narrower camera view without stretching.
+
+- `index.html`: accessible page, overlays, controls and HUD.
+- `style.css`: responsive visual design and touch layout.
+- `src/world.js`: level data, collision rules and movement physics.
+- `src/game.js`: state flow, input, camera, original procedural artwork and audio.
+- `tests/world.test.js`: movement, jump buffering, gap clearance and state isolation.
+
+For browser automation only, `?test` exposes `window.__remy` with state, player and world inspection. Normal play does not expose this bridge.
+
+## Art & scope
+
+All in-game dog, landscape, enemy and collectible graphics are original vector shapes drawn in Canvas; all sounds are original oscillator effects. No Nintendo/Mario assets, characters, music or level layouts are included. Interface fonts load from Google Fonts (DM Sans and Fraunces); system fonts provide an offline fallback. Gameplay itself needs no external services or assets.
+
+The campaign contains twelve distinct 5,400-unit stages, three enemy types, two water checkpoints and two power-ups per stage, and a homecoming ending. Completed stages unlock the next one. Use “The journey” below the game to replay unlocked stages. Unlocks and best biscuit totals are saved in local storage on the current device. There is no gamepad support or cloud save. Touch controls and HUD have accessible names; the action gameplay itself requires vision and real-time input.
+
+## Browser smoke test
+
+Optional: install Python Playwright (`python3 -m pip install playwright` and `python3 -m playwright install chromium`), start the local server on port 4173, then run `python3 tests/browser_test.py`. This exercises keyboard input, jump, pause/resume, checkpoints, fall recovery, charms, win/retry/game-over, a complete traversal using actual keyboard events, and touch input at 390 px width. Screenshots go to the ignored `test-results/` folder.
+
+## The twelve stages
+
+1. The Garden Gate
+2. Lavender Lanes
+3. The Olive Grove
+4. Vineyard Hop
+5. Market Day
+6. The Old Aqueduct
+7. Salt & Sea
+8. Harbour Hounds
+9. Calanque Climb
+10. Pinecone Path
+11. Golden Hour
+12. Home Before Dinner
+
+`tests/campaign.test.js` executes all twelve complete routes against the game logic, checks progression/retry/checkpoints/power-ups, and exercises drawing with a mock canvas. This complements visual browser checks; it is not a browser rendering test.
