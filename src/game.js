@@ -443,11 +443,16 @@ function dog(x, y, scale = 1) {
   ]) {
     rect(xx - 3, 10, 7, 12 + off, "#e9e9df", 3);
     ellipse(xx + 2, 20 + off, 6, 3, "#fffdf6");
-  } // White fur, soft ear shadows, expressive eyes and a rounded muzzle.
+  }
+  // Body fluff and collar must stay behind the head, never over the muzzle.
+  for (let i = 0; i < 5; i++) ellipse(-16 + i * 8, -3, 5, 5, "#fffef8");
+  rect(6, 8, 16, 4, "#cf8067", 2);
+  ellipse(11, 15, 3, 3, "#ddb666");
+  // Draw the far ear first so it cannot cover the eye on that side.
+  ellipse(24, -12, 5, 9, "#e5e7e0");
   ellipse(14, -6, 15, 15, "#fffef8");
   ellipse(1, -7, 6, 12, "#dedfd9");
   ellipse(1, -9, 4, 10, "#f5f5ef");
-  ellipse(24, -12, 5, 9, "#e5e7e0");
   for (const [fx, fy] of [
     [5, -18],
     [11, -21],
@@ -474,9 +479,6 @@ function dog(x, y, scale = 1) {
     ellipse(22, 7, 3, 4, "#e7a19b");
     line(22, 6, 22, 9, "#c78281", 0.7);
   }
-  rect(8, 6, 15, 4, "#cf8067", 2);
-  ellipse(17, 11, 3, 3, "#ddb666");
-  for (let i = 0; i < 5; i++) ellipse(-16 + i * 8, -3, 5, 5, "#fffef8");
   ctx.restore();
 }
 function enemy(e) {
